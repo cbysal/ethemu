@@ -19,7 +19,6 @@ struct Node {
   uint64_t nonce;
   uint64_t current;
   std::unordered_map<Hash, Transaction *, HashHash> txPool;
-  std::vector<Node *> peers;
   std::vector<Peer *> peerList;
   std::unordered_map<uint64_t, Peer *> peerMap;
 

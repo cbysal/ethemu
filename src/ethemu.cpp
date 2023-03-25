@@ -80,7 +80,7 @@ void ethemu(const std::string &dataDir) {
   for (auto [addr, node] : nodeMap)
     for (auto peer : global.nodes[addr]->peers)
       node->addPeer(nodeMap[peer]);
-  std::priority_queue<Event *> events;
+  std::priority_queue<Event *, std::vector<Event *>, CompareEvent> events;
   events.push(new TxTimerEvent(0));
   events.push(new BlockTimerEvent(0));
   while (!events.empty()) {
