@@ -15,21 +15,14 @@ void setId(std::vector<EmuNode *> &nodes) {
     nodes[i]->id = i;
 }
 
-Address randAddr(int seed) {
-  std::srand(seed);
-  Address addr;
-  for (unsigned char &b : addr.data)
-    b = std::rand();
-  return addr;
-}
-
 void setAddr(std::vector<EmuNode *> &nodes) {
   for (int i = 0; i < nodes.size(); i++) {
-    nodes[i]->addr = randAddr(std::time(nullptr) + i);
+    nodes[i]->addr = i;
   }
 }
 
 void setMiners(const cxxopts::ParseResult &options, std::vector<EmuNode *> &nodes) {
+  srand(time(nullptr));
   int num = options["miners"].as<int>();
   std::unordered_set<int> miners;
   while (miners.size() < num)

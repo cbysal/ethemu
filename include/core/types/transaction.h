@@ -6,13 +6,13 @@
 #include "common/types.h"
 
 struct Transaction {
-  Address from;
-  Address to;
+  uint64_t from;
+  uint64_t to;
   uint64_t nonce;
 
   Transaction() {}
 
-  Transaction(Address from, Address to, uint64_t nonce) {
+  Transaction(uint64_t from, uint64_t to, uint64_t nonce) {
     this->from = from;
     this->to = to;
     this->nonce = nonce;
@@ -30,15 +30,15 @@ struct Transaction {
   }
 
   void parse(const std::string &data) {
-    from.parse(data.substr(0, 32));
-    to.parse(data.substr(32, 64));
-    nonce = u64FromString(data.substr(64, 72));
+    from = u64FromString(data.substr(0, 8));
+    to = u64FromString(data.substr(8, 8));
+    nonce = u64FromString(data.substr(16, 8));
   }
 
   std::string bytes() const {
     std::string data;
-    data += from.bytes();
-    data += to.bytes();
+    data += u64ToString(from);
+    data += u64ToString(to);
     data += u64ToString(nonce);
     return data;
   }

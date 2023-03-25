@@ -9,13 +9,13 @@
 
 struct Block {
   Hash parentHash;
-  Address coinbase;
+  uint64_t coinbase;
   uint64_t number;
   std::vector<Transaction *> transactions;
 
   Block(){};
 
-  Block(Hash parentHash, Address coinbase, uint64_t number, const std::vector<Transaction *> &transactions) {
+  Block(Hash parentHash, uint64_t coinbase, uint64_t number, const std::vector<Transaction *> &transactions) {
     this->parentHash = parentHash;
     this->coinbase = coinbase;
     this->number = number;
@@ -25,12 +25,12 @@ struct Block {
   static Block *parse(const std::string &data) {
     Block *block = new Block();
     block->parentHash.parse(data.substr(0, 32));
-    block->coinbase.parse(data.substr(32, 52));
-    block->number = u64FromString(data.substr(52, 60));
-    int txNum = (data.length() - 60) / sizeof(Transaction);
+    block->coinbase = u64FromString(data.substr(32, 8));
+    block->number = u64FromString(data.substr(40, 8));
+    int txNum = (data.length() - 48) / sizeof(Transaction);
     for (int i = 0; i < txNum; i++) {
       Transaction *tx = new Transaction();
-      tx->parse(data.substr(60 + i * sizeof(Transaction), 60 + (i + 1) * sizeof(Transaction)));
+      tx->parse(data.substr(48 + i * sizeof(Transaction), sizeof(Transaction)));
       block->transactions.push_back(tx);
     }
     return block;
@@ -39,7 +39,7 @@ struct Block {
   std::string bytes() const {
     std::string data;
     data += parentHash.bytes();
-    data += coinbase.bytes();
+    data += u64ToString(coinbase);
     data += u64ToString(number);
     for (auto tx : transactions)
       data += tx->bytes();

@@ -1,4 +1,5 @@
 #include "emu/config.h"
+#include "common/math.h"
 
 Config global;
 
@@ -13,16 +14,14 @@ void loadConfig(const std::string &dataDir) {
   global.minTxInterval = data["minTxInterval"];
   global.maxTxInterval = data["maxTxInterval"];
   for (auto [key, value] : data["nodes"].items()) {
-    Address addr;
-    addr.parseFromString(key);
+    uint64_t addr = std::stoi(key);
     EmuNode *node = new EmuNode();
     node->id = value["id"];
-    node->addr.parseFromString(value["addr"]);
+    node->addr = value["addr"];
     node->isMiner = value["isMiner"];
     json::array_t peersJson;
     for (auto p : value["peers"]) {
-      Address peer;
-      peer.parseFromString(p);
+      uint64_t peer = p;
       node->peers.push_back(peer);
     }
     global.nodes[addr] = node;
@@ -38,7 +37,7 @@ void storeConfig(const std::string &dataDir) {
   data["maxTxInterval"] = global.maxTxInterval;
   for (auto node : global.nodes) {
     json nodeJson = node.second->toJson();
-    data["nodes"][node.first.toString()] = nodeJson;
+    data["nodes"][std::to_string(node.first)] = nodeJson;
   }
   const std::string configPath = std::filesystem::path(dataDir) / CONFIG_JSON;
   std::ofstream ofs(configPath);

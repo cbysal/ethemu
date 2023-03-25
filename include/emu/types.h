@@ -10,18 +10,18 @@ using json = nlohmann::json;
 
 struct EmuNode {
   uint64_t id;
-  Address addr;
+  uint64_t addr;
   bool isMiner;
-  std::vector<Address> peers;
+  std::vector<uint64_t> peers;
 
   json toJson() const {
     json data;
     data["id"] = id;
-    data["addr"] = addr.toString();
+    data["addr"] = addr;
     data["isMiner"] = isMiner;
     json::array_t peersJson;
     for (auto peer : peers)
-      peersJson.push_back(peer.toString());
+      peersJson.push_back(peer);
     data["peers"] = peersJson;
     return data;
   }

@@ -1,5 +1,11 @@
 #include "common/math.h"
 
+std::string idToString(uint64_t id) {
+  char buf[16];
+  sprintf(buf, "emu%06d", id);
+  return buf;
+}
+
 std::string u64ToString(uint64_t value) {
   std::string str;
   str.resize(8);

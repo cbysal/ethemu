@@ -14,16 +14,16 @@
 
 struct Node {
   std::string id;
-  Address addr;
+  uint64_t addr;
   leveldb::DB *db;
   uint64_t nonce;
   uint64_t current;
   std::unordered_map<Hash, Transaction *, HashHash> txPool;
   std::vector<Node *> peers;
   std::vector<Peer *> peerList;
-  std::unordered_map<Address, Peer *, AddrHash> peerMap;
+  std::unordered_map<uint64_t, Peer *> peerMap;
 
-  Node(std::string id, Address addr, leveldb::DB *db) {
+  Node(std::string id, uint64_t addr, leveldb::DB *db) {
     this->id = id;
     this->addr = addr;
     this->db = db;

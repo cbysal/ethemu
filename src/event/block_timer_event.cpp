@@ -2,8 +2,9 @@
 
 BlockTimerEvent::BlockTimerEvent(uint64_t timestamp) : Event(timestamp) {}
 
-void BlockTimerEvent::process(std::priority_queue<Event *> &queue, leveldb::DB *db, const std::vector<Address> &nodeList,
-             const std::unordered_map<Address, Node *, AddrHash> &nodeMap) {
+void BlockTimerEvent::process(std::priority_queue<Event *> &queue, leveldb::DB *db,
+                              const std::vector<uint64_t> &nodeList,
+                              const std::unordered_map<uint64_t, Node *> &nodeMap) {
   Node *node = nodeMap.at(nodeList[rand() % nodeList.size()]);
   Block *parentBlock = readBlock(db, node->id, node->current);
   std::vector<Transaction *> txs;
@@ -17,4 +18,6 @@ void BlockTimerEvent::process(std::priority_queue<Event *> &queue, leveldb::DB *
   queue.push(new BlockTimerEvent(timestamp + 15000));
 }
 
-std::string BlockTimerEvent::toString() const { return "BlockTimerEvent (timestamp: " + std::to_string(timestamp) + ")"; }
+std::string BlockTimerEvent::toString() const {
+  return "BlockTimerEvent (timestamp: " + std::to_string(timestamp) + ")";
+}
