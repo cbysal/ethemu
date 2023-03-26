@@ -97,11 +97,8 @@ void init(const std::string &dataDir) {
   auto s = leveldb::DB::Open(options, dataDir, &db);
   if (!s.ok())
     throw s.ToString();
-  Block *block = new Block();
-  for (auto [addr, node] : global.nodes) {
-    char id[9];
-    std::sprintf(id, "emu%06d", node->id);
-    writeBlock(db, id, block);
-  }
+  Block *block = new Block(Hash{0}, 0, 0, {});
+  for (auto [addr, node] : global.nodes)
+    writeBlock(db, idToString(node->id), block);
   delete db;
 }

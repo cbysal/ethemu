@@ -7,14 +7,17 @@
 #include "common/types.h"
 #include "core/types/transaction.h"
 
-struct Block {
+class Block {
+public:
   Hash parentHash;
   uint64_t coinbase;
   uint64_t number;
   std::vector<Transaction *> transactions;
 
+private:
   Block(){};
 
+public:
   Block(Hash parentHash, uint64_t coinbase, uint64_t number, const std::vector<Transaction *> &transactions) {
     this->parentHash = parentHash;
     this->coinbase = coinbase;

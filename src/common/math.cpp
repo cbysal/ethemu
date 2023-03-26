@@ -1,9 +1,12 @@
+#include <iomanip>
+#include <sstream>
+
 #include "common/math.h"
 
 std::string idToString(uint64_t id) {
-  char buf[16];
-  sprintf(buf, "emu%06d", id);
-  return buf;
+  std::stringstream ss;
+  ss << "emu" << std::setfill('0') << std::setw(4) << id;
+  return ss.str();
 }
 
 std::string u64ToString(uint64_t value) {

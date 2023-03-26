@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "core/rawdb/accessors_chain.h"
 #include "core/rawdb/schema.h"
 

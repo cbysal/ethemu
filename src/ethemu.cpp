@@ -71,9 +71,7 @@ void ethemu(const std::string &dataDir) {
   std::vector<uint64_t> nodeList;
   std::unordered_map<uint64_t, Node *> nodeMap;
   for (auto [addr, n] : global.nodes) {
-    char id[9];
-    sprintf(id, "emu%06d", n->id);
-    Node *node = new Node(id, addr, db);
+    Node *node = new Node(idToString(n->id), addr, db);
     nodeList.push_back(addr);
     nodeMap[addr] = node;
   }
