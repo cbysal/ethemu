@@ -19,7 +19,7 @@ struct Node {
   uint64_t current;
   std::unordered_map<uint64_t, std::shared_ptr<Transaction>> txPool;
   std::vector<uint64_t> peerList;
-  std::unordered_map<uint64_t, std::unique_ptr<Peer>> peerMap;
+  std::unordered_map<uint64_t, Peer *> peerMap;
 
   Node(uint64_t id, uint64_t addr, leveldb::DB *db) {
     this->id = id;
@@ -29,11 +29,15 @@ struct Node {
     this->current = 0;
   }
 
+  ~Node() {
+    for (auto &[_, peer] : peerMap)
+      delete peer;
+  }
+
   uint64_t nextNonce() { return nonce++; }
   void addPeer(const std::unique_ptr<Node> &node) {
-    std::unique_ptr<Peer> peer = std::make_unique<Peer>(node->addr);
     peerList.push_back(node->addr);
-    peerMap[node->addr] = std::move(peer);
+    peerMap[node->addr] = new Peer(node->addr);
   }
   void insertBlock(const std::shared_ptr<Block> &block) {
     writeBlock(db, id, block);
