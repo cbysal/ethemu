@@ -13,6 +13,6 @@ public:
   SendBlockEvent(uint64_t timestamp, uint64_t from, uint64_t to, Block *block);
 
   void process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue, leveldb::DB *db,
-               const std::vector<uint64_t> &nodeList, const std::unordered_map<uint64_t, Node *> &nodeMap);
+               const std::vector<Node *> &nodes);
   std::string toString() const;
 };

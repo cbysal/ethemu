@@ -3,9 +3,8 @@
 BlockTimerEvent::BlockTimerEvent(uint64_t timestamp) : Event(timestamp) {}
 
 void BlockTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue, leveldb::DB *db,
-                              const std::vector<uint64_t> &nodeList,
-                              const std::unordered_map<uint64_t, Node *> &nodeMap) {
-  Node *node = nodeMap.at(nodeList[rand() % nodeList.size()]);
+                              const std::vector<Node *> &nodes) {
+  Node *node = nodes[rand() % nodes.size()];
   Block *parentBlock = readBlock(db, node->id, node->current);
   std::vector<Transaction *> txs;
   for (auto [hash, tx] : node->txPool) {

@@ -68,23 +68,22 @@ void ethemu(const std::string &dataDir) {
   if (!s.ok()) {
     throw s.ToString();
   }
-  std::vector<uint64_t> nodeList;
-  std::unordered_map<uint64_t, Node *> nodeMap;
-  for (auto [addr, n] : global.nodes) {
-    Node *node = new Node(idToString(n->id), addr, db);
-    nodeList.push_back(addr);
-    nodeMap[addr] = node;
+  std::vector<Node *> nodes;
+  for (int i = 0; i < global.nodes.size(); i++) {
+    EmuNode *emuNode = global.nodes[i];
+    Node *node = new Node(idToString(emuNode->id), emuNode->addr, db);
+    nodes.push_back(node);
   }
-  for (auto [addr, node] : nodeMap)
-    for (auto peer : global.nodes[addr]->peers)
-      node->addPeer(nodeMap[peer]);
+  for (auto node : nodes)
+    for (auto peer : global.nodes[node->addr]->peers)
+      node->addPeer(nodes[peer]);
   std::priority_queue<Event *, std::vector<Event *>, CompareEvent> events;
   events.push(new TxTimerEvent(0));
   events.push(new BlockTimerEvent(0));
   while (!events.empty()) {
     Event *event = events.top();
     events.pop();
-    event->process(events, db, nodeList, nodeMap);
+    event->process(events, db, nodes);
     std::cout << event->toString() << std::endl;
   }
   delete db;

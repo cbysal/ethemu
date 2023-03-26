@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -31,8 +32,7 @@ public:
     block->number = u64FromBytes(data.substr(16, 8));
     int txNum = (data.length() - 16) / sizeof(Transaction);
     for (int i = 0; i < txNum; i++) {
-      Transaction *tx = new Transaction();
-      tx->parse(data.substr(16 + i * sizeof(Transaction), sizeof(Transaction)));
+      Transaction *tx = Transaction::parse(data.substr(16 + i * sizeof(Transaction), sizeof(Transaction)));
       block->transactions.push_back(tx);
     }
     return block;
@@ -40,11 +40,16 @@ public:
 
   std::string bytes() const {
     std::string data;
-    data += u64ToBytes(parentHash);
-    data += u64ToBytes(coinbase);
-    data += u64ToBytes(number);
-    for (auto tx : transactions)
-      data += tx->bytes();
+    data.resize(24 + transactions.size() * sizeof(Transaction));
+    char *dataPtr = data.data();
+    *((uint64_t *)dataPtr) = parentHash;
+    *((uint64_t *)(dataPtr + 8)) = coinbase;
+    *((uint64_t *)(dataPtr + 16)) = number;
+    for (int i = 0; i < transactions.size(); i++) {
+      std::string txBytes = transactions[i]->bytes();
+      char *txBytesPtr = txBytes.data();
+      std::memcpy(dataPtr + 16 + i * sizeof(Transaction), txBytesPtr, sizeof(Transaction));
+    }
     return data;
   }
 

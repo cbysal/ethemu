@@ -4,13 +4,16 @@
 
 #include "common/math.h"
 
-struct Transaction {
+class Transaction {
+public:
   uint64_t from;
   uint64_t to;
   uint64_t nonce;
 
+private:
   Transaction() {}
 
+public:
   Transaction(uint64_t from, uint64_t to, uint64_t nonce) {
     this->from = from;
     this->to = to;
@@ -19,17 +22,22 @@ struct Transaction {
 
   uint64_t hash() const { return (from << 48) | (to << 32) | nonce; }
 
-  void parse(const std::string &data) {
-    from = u64FromBytes(data.substr(0, 8));
-    to = u64FromBytes(data.substr(8, 8));
-    nonce = u64FromBytes(data.substr(16, 8));
+  static Transaction *parse(const std::string &data) {
+    Transaction *tx = new Transaction();
+    const char *dataPtr = data.data();
+    tx->from = *((uint64_t *)dataPtr);
+    tx->to = *((uint64_t *)(dataPtr + 8));
+    tx->nonce = *((uint64_t *)(dataPtr + 16));
+    return tx;
   }
 
   std::string bytes() const {
     std::string data;
-    data += u64ToBytes(from);
-    data += u64ToBytes(to);
-    data += u64ToBytes(nonce);
+    data.resize(24);
+    char *dataPtr = data.data();
+    *((uint64_t *)dataPtr) = from;
+    *((uint64_t *)(dataPtr + 8)) = to;
+    *((uint64_t *)(dataPtr + 16)) = nonce;
     return data;
   }
 };

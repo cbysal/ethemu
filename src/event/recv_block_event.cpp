@@ -7,9 +7,8 @@ RecvBlockEvent::RecvBlockEvent(uint64_t timestamp, uint64_t from, uint64_t to, B
 }
 
 void RecvBlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue, leveldb::DB *db,
-                             const std::vector<uint64_t> &nodeList,
-                             const std::unordered_map<uint64_t, Node *> &nodeMap) {
-  Node *node = nodeMap.at(to);
+                             const std::vector<Node *> &nodes) {
+  Node *node = nodes[to];
   node->insertBlock(block);
   uint64_t hash = block->hash();
   for (auto peer : node->peerList) {
