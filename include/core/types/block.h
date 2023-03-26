@@ -5,33 +5,35 @@
 #include <vector>
 
 #include "common/math.h"
+#include "core/types/header.h"
 #include "core/types/transaction.h"
 
 class Block {
 public:
-  uint64_t parentHash;
-  uint64_t coinbase;
-  uint64_t number;
+  std::shared_ptr<Header> header;
   std::vector<std::shared_ptr<Transaction>> transactions;
 
 private:
   Block(){};
 
-public:
-  Block(uint64_t parentHash, uint64_t coinbase, uint64_t number,
-        const std::vector<std::shared_ptr<Transaction>> &transactions) {
-    this->parentHash = parentHash;
-    this->coinbase = coinbase;
-    this->number = number;
-    this->transactions = transactions;
+  uint64_t txsHash(const std::vector<std::shared_ptr<Transaction>> &txs) const {
+    uint64_t hash = 0;
+    for (int i = 0; i < txs.size(); i++) {
+      uint64_t txHash = txs[i]->hash();
+      hash ^= (txHash << i) | (txHash >> (64 - i));
+    }
+    return hash;
   }
 
+public:
+  Block(uint64_t parentHash, uint64_t coinbase, uint64_t number,
+        const std::vector<std::shared_ptr<Transaction>> &transactions)
+      : header(std::make_shared<Header>(parentHash, coinbase, number, txsHash(transactions))),
+        transactions(transactions) {}
+
   static std::unique_ptr<Block> parse(const std::string &data) {
-    const char *dataPtr = data.data();
     Block *block = new Block();
-    block->parentHash = *((uint64_t *)dataPtr);
-    block->coinbase = *((uint64_t *)(dataPtr + 8));
-    block->number = *((uint64_t *)(dataPtr + 16));
+    block->header = Header::parse(data.substr(0, 24));
     int txNum = (data.length() - 24) / sizeof(Transaction);
     for (int i = 0; i < txNum; i++) {
       std::unique_ptr<Transaction> tx =
@@ -41,13 +43,15 @@ public:
     return std::unique_ptr<Block>(block);
   }
 
+  uint64_t number() const { return header->number; }
+
   std::string bytes() const {
     std::string data;
-    data.resize(24 + transactions.size() * sizeof(Transaction));
+    data.resize(32 + transactions.size() * sizeof(Transaction));
     char *dataPtr = data.data();
-    *((uint64_t *)dataPtr) = parentHash;
-    *((uint64_t *)(dataPtr + 8)) = coinbase;
-    *((uint64_t *)(dataPtr + 16)) = number;
+    std::string headerBytes = header->bytes();
+    char *headerBytesPtr = headerBytes.data();
+    std::memcpy(dataPtr, headerBytesPtr, 32);
     for (int i = 0; i < transactions.size(); i++) {
       std::string txBytes = transactions[i]->bytes();
       char *txBytesPtr = txBytes.data();
@@ -56,15 +60,5 @@ public:
     return data;
   }
 
-  uint64_t hash() const {
-    uint64_t h = 0;
-    h ^= parentHash ^ (parentHash << 32);
-    for (auto &tx : transactions) {
-      uint64_t txHash = tx->hash();
-      h ^= txHash ^ (txHash << 32);
-    }
-    h &= 0xffffffff00000000;
-    h |= (coinbase << 16) | number;
-    return h;
-  }
+  uint64_t hash() const { return header->hash(); }
 };

@@ -41,6 +41,6 @@ struct Node {
   }
   void insertBlock(const std::shared_ptr<Block> &block) {
     writeBlock(db, id, block);
-    current = block->number;
+    current = block->number();
   }
 };

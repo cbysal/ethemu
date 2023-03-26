@@ -11,7 +11,7 @@ std::unique_ptr<Block> readBlock(leveldb::DB *db, uint64_t id, uint64_t number) 
 
 void writeBlock(leveldb::DB *db, uint64_t id, const std::shared_ptr<Block> &block) {
   std::string value = block->bytes();
-  auto s = db->Put(leveldb::WriteOptions(), blockKey(id, block->number), value);
+  auto s = db->Put(leveldb::WriteOptions(), blockKey(id, block->number()), value);
   if (!s.ok())
     throw s.ToString();
 }
