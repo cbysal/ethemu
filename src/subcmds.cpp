@@ -100,6 +100,6 @@ void init(const std::string &dataDir) {
     throw s.ToString();
   std::shared_ptr<Block> block = std::make_shared<Block>(0, 0, 0, std::vector<std::shared_ptr<Transaction>>{});
   for (auto &[addr, node] : global.nodes)
-    writeBlock(db, idToString(node->id), block);
+    writeBlock(db, node->id, block);
   delete db;
 }

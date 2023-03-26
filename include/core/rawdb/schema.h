@@ -2,4 +2,4 @@
 
 #include <string>
 
-std::string blockKey(std::string, uint64_t);
+std::string blockKey(uint64_t , uint64_t);

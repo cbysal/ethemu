@@ -12,7 +12,7 @@
 #include "leveldb/db.h"
 
 struct Node {
-  std::string id;
+  uint64_t id;
   uint64_t addr;
   leveldb::DB *db;
   uint64_t nonce;
@@ -21,7 +21,7 @@ struct Node {
   std::vector<uint64_t> peerList;
   std::unordered_map<uint64_t, std::unique_ptr<Peer>> peerMap;
 
-  Node(std::string id, uint64_t addr, leveldb::DB *db) {
+  Node(uint64_t id, uint64_t addr, leveldb::DB *db) {
     this->id = id;
     this->addr = addr;
     this->db = db;

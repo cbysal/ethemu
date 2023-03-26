@@ -27,10 +27,11 @@ public:
   }
 
   static std::unique_ptr<Block> parse(const std::string &data) {
+    const char *dataPtr = data.data();
     Block *block = new Block();
-    block->parentHash = u64FromBytes(data.substr(0, 8));
-    block->coinbase = u64FromBytes(data.substr(8, 8));
-    block->number = u64FromBytes(data.substr(16, 8));
+    block->parentHash = *((uint64_t *)dataPtr);
+    block->coinbase = *((uint64_t *)(dataPtr + 8));
+    block->number = *((uint64_t *)(dataPtr + 16));
     int txNum = (data.length() - 24) / sizeof(Transaction);
     for (int i = 0; i < txNum; i++) {
       std::unique_ptr<Transaction> tx =
