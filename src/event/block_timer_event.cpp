@@ -14,7 +14,7 @@ void BlockTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>,
   }
   std::shared_ptr<Block> block =
       std::make_shared<Block>(parentBlock->hash(), node->addr, parentBlock->number() + 1, txs);
-  queue.push(new RecvBlockEvent(timestamp, node->addr, node->addr, block));
+  queue.push(new BlockEvent(timestamp, node->addr, node->addr, block));
   queue.push(new BlockTimerEvent(timestamp + 15000));
 }
 

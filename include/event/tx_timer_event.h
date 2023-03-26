@@ -2,7 +2,7 @@
 
 #include "emu/config.h"
 #include "event/event.h"
-#include "event/recv_tx_event.h"
+#include "event/tx_event.h"
 
 class TxTimerEvent : public Event {
 public:

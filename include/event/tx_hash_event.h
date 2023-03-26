@@ -1,15 +1,14 @@
 #pragma once
 
 #include "event/event.h"
-#include "event/recv_tx_event.h"
 
-class SendTxHashEvent : public Event {
+class TxHashEvent : public Event {
 public:
   const uint64_t from;
   const uint64_t to;
   const uint64_t txHash;
 
-  SendTxHashEvent(uint64_t timestamp, uint64_t from, uint64_t to, uint64_t txHash);
+  TxHashEvent(uint64_t timestamp, uint64_t from, uint64_t to, uint64_t txHash);
 
   void process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue, leveldb::DB *db,
                const std::vector<std::unique_ptr<Node>> &nodes) const;
