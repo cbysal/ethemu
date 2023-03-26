@@ -29,16 +29,17 @@ Option txMinOpt("tx.min", "Restrict the minimum transaction num sent during each
 Option txMaxOpt("tx.max", "Restrict the maximum transaction num sent during each block time",
                 cxxopts::value<int>()->default_value("50"));
 Option blockTimeOpt("block.time", "Interval of consensus for blocks", cxxopts::value<int>()->default_value("30"));
+Option simTimeOpt("sim.time", "Time limit of the simulation", cxxopts::value<int>()->default_value("1000000"));
 
-std::vector<Option> opts = {datadirOpt,  nodesOpt,    minersOption, peerMinOpt, peerMaxOpt,
-                            delayMinOpt, delayMaxOpt, txMinOpt,     txMaxOpt,   blockTimeOpt};
+std::vector<Option> opts = {datadirOpt,  nodesOpt, minersOption, peerMinOpt,   peerMaxOpt, delayMinOpt,
+                            delayMaxOpt, txMinOpt, txMaxOpt,     blockTimeOpt, simTimeOpt};
 
 int main(int argc, char *argv[]) {
   std::for_each(opts.begin(), opts.end(), [](auto opt) { options.add_option("", opt); });
   auto result = options.parse(argc, argv);
   switch (result.unmatched().size()) {
   case 0:
-    ethemu(result["datadir"].as<std::string>());
+    ethemu(result["datadir"].as<std::string>(), result["sim.time"].as<int>());
     break;
   case 1: {
     auto subcmd = result.unmatched()[0];
@@ -59,7 +60,7 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void ethemu(const std::string &dataDir) {
+void ethemu(const std::string &dataDir, uint64_t simTime) {
   loadConfig(dataDir);
   leveldb::DB *db;
   leveldb::Options options;
@@ -82,10 +83,11 @@ void ethemu(const std::string &dataDir) {
   events.push(new BlockTimerEvent(0));
   while (!events.empty()) {
     Event *event = events.top();
+    if (event->timestamp > simTime)
+      break;
     events.pop();
     event->process(events, db, nodes);
-    if (typeid(*event)== typeid(BlockTimerEvent))
-      std::cout << event->toString() << std::endl;
+    std::cout << event->toString() << std::endl;
     delete event;
   }
   while (!events.empty()) {
