@@ -2,4 +2,5 @@
 
 #include <string>
 
-std::string blockKey(uint64_t , uint64_t);
+std::string blockKeyByNumber(uint64_t id, uint64_t number);
+std::string blockKeyByHash(uint64_t id, uint64_t hash);
