@@ -22,13 +22,13 @@ public:
 
   uint64_t hash() const { return (from << 48) | (to << 32) | nonce; }
 
-  static Transaction *parse(const std::string &data) {
+  static std::unique_ptr<Transaction> parse(const std::string &data) {
     Transaction *tx = new Transaction();
     const char *dataPtr = data.data();
     tx->from = *((uint64_t *)dataPtr);
     tx->to = *((uint64_t *)(dataPtr + 8));
     tx->nonce = *((uint64_t *)(dataPtr + 16));
-    return tx;
+    return std::forward<std::unique_ptr<Transaction>>(std::unique_ptr<Transaction>(tx));
   }
 
   std::string bytes() const {

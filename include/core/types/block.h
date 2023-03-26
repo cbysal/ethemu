@@ -12,30 +12,32 @@ public:
   uint64_t parentHash;
   uint64_t coinbase;
   uint64_t number;
-  std::vector<Transaction *> transactions;
+  std::vector<std::shared_ptr<Transaction>> transactions;
 
 private:
   Block(){};
 
 public:
-  Block(uint64_t parentHash, uint64_t coinbase, uint64_t number, const std::vector<Transaction *> &transactions) {
+  Block(uint64_t parentHash, uint64_t coinbase, uint64_t number,
+        const std::vector<std::shared_ptr<Transaction>> &transactions) {
     this->parentHash = parentHash;
     this->coinbase = coinbase;
     this->number = number;
     this->transactions = transactions;
   }
 
-  static Block *parse(const std::string &data) {
+  static std::unique_ptr<Block> parse(const std::string &data) {
     Block *block = new Block();
     block->parentHash = u64FromBytes(data.substr(0, 8));
     block->coinbase = u64FromBytes(data.substr(8, 8));
     block->number = u64FromBytes(data.substr(16, 8));
-    int txNum = (data.length() - 16) / sizeof(Transaction);
+    int txNum = (data.length() - 24) / sizeof(Transaction);
     for (int i = 0; i < txNum; i++) {
-      Transaction *tx = Transaction::parse(data.substr(16 + i * sizeof(Transaction), sizeof(Transaction)));
-      block->transactions.push_back(tx);
+      std::unique_ptr<Transaction> tx =
+          Transaction::parse(data.substr(24 + i * sizeof(Transaction), sizeof(Transaction)));
+      block->transactions.push_back(std::move(tx));
     }
-    return block;
+    return std::unique_ptr<Block>(block);
   }
 
   std::string bytes() const {
@@ -56,7 +58,7 @@ public:
   uint64_t hash() const {
     uint64_t h = 0;
     h ^= parentHash ^ (parentHash << 32);
-    for (auto tx : transactions) {
+    for (auto &tx : transactions) {
       uint64_t txHash = tx->hash();
       h ^= txHash ^ (txHash << 32);
     }

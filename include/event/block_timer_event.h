@@ -9,6 +9,6 @@ public:
   BlockTimerEvent(uint64_t timestamp);
 
   void process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue, leveldb::DB *db,
-               const std::vector<Node *> &nodes);
+               const std::vector<std::unique_ptr<Node>> &nodes) const;
   std::string toString() const;
 };

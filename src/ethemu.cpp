@@ -68,13 +68,13 @@ void ethemu(const std::string &dataDir) {
   if (!s.ok()) {
     throw s.ToString();
   }
-  std::vector<Node *> nodes;
+  std::vector<std::unique_ptr<Node>> nodes;
   for (int i = 0; i < global.nodes.size(); i++) {
-    EmuNode *emuNode = global.nodes[i];
-    Node *node = new Node(idToString(emuNode->id), emuNode->addr, db);
-    nodes.push_back(node);
+    const std::unique_ptr<EmuNode> &emuNode = global.nodes[i];
+    std::unique_ptr<Node> node = std::make_unique<Node>(idToString(emuNode->id), emuNode->addr, db);
+    nodes.push_back(std::move(node));
   }
-  for (auto node : nodes)
+  for (auto &node : nodes)
     for (auto peer : global.nodes[node->addr]->peers)
       node->addPeer(nodes[peer]);
   std::priority_queue<Event *, std::vector<Event *>, CompareEvent> events;
@@ -84,7 +84,14 @@ void ethemu(const std::string &dataDir) {
     Event *event = events.top();
     events.pop();
     event->process(events, db, nodes);
-    std::cout << event->toString() << std::endl;
+    if (typeid(*event)== typeid(BlockTimerEvent))
+      std::cout << event->toString() << std::endl;
+    delete event;
+  }
+  while (!events.empty()) {
+    Event *event = events.top();
+    events.pop();
+    delete event;
   }
   delete db;
 }

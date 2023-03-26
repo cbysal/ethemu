@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <unordered_set>
 
 #include "core/rawdb/accessors_chain.h"
@@ -10,18 +11,18 @@
 #include "ethemu.h"
 #include "leveldb/db.h"
 
-void setId(std::vector<EmuNode *> &nodes) {
+void setId(std::vector<std::unique_ptr<EmuNode>> &nodes) {
   for (int i = 0; i < nodes.size(); i++)
     nodes[i]->id = i;
 }
 
-void setAddr(std::vector<EmuNode *> &nodes) {
+void setAddr(std::vector<std::unique_ptr<EmuNode>> &nodes) {
   for (int i = 0; i < nodes.size(); i++) {
     nodes[i]->addr = i;
   }
 }
 
-void setMiners(const cxxopts::ParseResult &options, std::vector<EmuNode *> &nodes) {
+void setMiners(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<EmuNode>> &nodes) {
   srand(time(nullptr));
   int num = options["miners"].as<int>();
   std::unordered_set<int> miners;
@@ -31,7 +32,7 @@ void setMiners(const cxxopts::ParseResult &options, std::vector<EmuNode *> &node
     nodes[i]->isMiner = miners.count(i);
 }
 
-void setPeers(const cxxopts::ParseResult &options, std::vector<EmuNode *> &nodes) {
+void setPeers(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<EmuNode>> &nodes) {
   int minPeer = options["peer.min"].as<int>();
   int maxPeer = options["peer.max"].as<int>();
   std::vector<std::unordered_set<int>> peers(nodes.size());
@@ -70,9 +71,9 @@ void gen(const cxxopts::ParseResult &options) {
   }
   std::filesystem::create_directories(dataDir);
   auto num = options["nodes"].as<int>();
-  std::vector<EmuNode *> nodes(num);
+  std::vector<std::unique_ptr<EmuNode>> nodes(num);
   for (int i = 0; i < num; i++) {
-    nodes[i] = new EmuNode();
+    nodes[i] = std::make_unique<EmuNode>();
   }
   setId(nodes);
   setAddr(nodes);
@@ -83,8 +84,8 @@ void gen(const cxxopts::ParseResult &options) {
   global.maxDelay = options["delay.max"].as<int>();
   global.minTxInterval = global.period * 1000 / options["tx.max"].as<int>();
   global.maxTxInterval = global.period * 1000 / options["tx.min"].as<int>();
-  for (auto node : nodes) {
-    global.nodes[node->addr] = node;
+  for (auto &node : nodes) {
+    global.nodes[node->addr] = std::move(node);
   }
   storeConfig(dataDir);
 }
@@ -97,8 +98,8 @@ void init(const std::string &dataDir) {
   auto s = leveldb::DB::Open(options, dataDir, &db);
   if (!s.ok())
     throw s.ToString();
-  Block *block = new Block(0, 0, 0, {});
-  for (auto [addr, node] : global.nodes)
+  std::shared_ptr<Block> block = std::make_shared<Block>(0, 0, 0, std::vector<std::shared_ptr<Transaction>>{});
+  for (auto &[addr, node] : global.nodes)
     writeBlock(db, idToString(node->id), block);
   delete db;
 }
