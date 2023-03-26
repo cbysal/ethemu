@@ -2,10 +2,10 @@
 
 BlockTimerEvent::BlockTimerEvent(uint64_t timestamp) : Event(timestamp) {}
 
-void BlockTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue, leveldb::DB *db,
+void BlockTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                               const std::vector<std::unique_ptr<Node>> &nodes) const {
   const std::unique_ptr<Node> &node = nodes[rand() % nodes.size()];
-  std::unique_ptr<Block> parentBlock = readBlockByNumber(db, node->id, node->current);
+  std::shared_ptr<Block> parentBlock = node->blocksByNumber[node->current];
   std::vector<std::shared_ptr<Transaction>> txs;
   for (auto &[hash, tx] : node->txPool) {
     txs.push_back(tx);

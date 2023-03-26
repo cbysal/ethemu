@@ -7,7 +7,7 @@
 TxEvent::TxEvent(uint64_t timestamp, uint64_t from, uint64_t to, const std::shared_ptr<Transaction> &tx)
     : Event(timestamp), from(from), to(to), tx(tx) {}
 
-void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue, leveldb::DB *db,
+void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                       const std::vector<std::unique_ptr<Node>> &nodes) const {
   const std::unique_ptr<Node> &node = nodes[to];
   uint64_t hash = tx->hash();

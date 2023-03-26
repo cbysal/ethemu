@@ -3,13 +3,11 @@
 #include <memory>
 #include <unordered_set>
 
-#include "core/rawdb/accessors_chain.h"
 #include "core/types/block.h"
 #include "cxxopts.hpp"
 #include "emu/config.h"
 #include "emu/types.h"
 #include "ethemu.h"
-#include "leveldb/db.h"
 
 void setId(std::vector<std::unique_ptr<EmuNode>> &nodes) {
   for (int i = 0; i < nodes.size(); i++)
@@ -88,18 +86,4 @@ void gen(const cxxopts::ParseResult &options) {
     global.nodes[node->addr] = std::move(node);
   }
   storeConfig(dataDir);
-}
-
-void init(const std::string &dataDir) {
-  loadConfig(dataDir);
-  leveldb::DB *db;
-  leveldb::Options options;
-  options.create_if_missing = true;
-  auto s = leveldb::DB::Open(options, dataDir, &db);
-  if (!s.ok())
-    throw s.ToString();
-  std::shared_ptr<Block> block = std::make_shared<Block>(0, 0, 0, std::vector<std::shared_ptr<Transaction>>{});
-  for (auto &[addr, node] : global.nodes)
-    writeBlock(db, node->id, block);
-  delete db;
 }

@@ -16,7 +16,7 @@ public:
 
   bool operator<(const Event *&event) const { return timestamp < event->timestamp; }
 
-  virtual void process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue, leveldb::DB *db,
+  virtual void process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                        const std::vector<std::unique_ptr<Node>> &nodes) const {}
   virtual std::string toString() const { return ""; }
 };

@@ -1,12 +1,12 @@
+#include "event/tx_req_event.h"
 #include "emu/config.h"
 #include "event/tx_event.h"
-#include "event/tx_req_event.h"
 
 TxReqEvent::TxReqEvent(uint64_t timestamp, uint64_t from, uint64_t to, uint64_t txHash)
     : Event(timestamp), from(from), to(to), txHash(txHash) {}
 
-void TxReqEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue, leveldb::DB *db,
-                             const std::vector<std::unique_ptr<Node>> &nodes) const {
+void TxReqEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
+                         const std::vector<std::unique_ptr<Node>> &nodes) const {
   const std::unique_ptr<Node> &node = nodes[to];
   std::shared_ptr<Transaction> tx = node->txPool[txHash];
   uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);

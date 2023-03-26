@@ -7,7 +7,6 @@
 #include "event/block_timer_event.h"
 #include "event/event.h"
 #include "event/tx_timer_event.h"
-#include "leveldb/db.h"
 #include "node/node.h"
 
 using Options = cxxopts::Options;
@@ -47,10 +46,6 @@ int main(int argc, char *argv[]) {
       gen(result);
       break;
     }
-    if (subcmd == "init") {
-      init(result["datadir"].as<std::string>());
-      break;
-    }
     std::cerr << "Unknown subcommand: " + subcmd << std::endl;
     return -1;
   }
@@ -62,22 +57,20 @@ int main(int argc, char *argv[]) {
 
 void ethemu(const std::string &dataDir, uint64_t simTime) {
   loadConfig(dataDir);
-  leveldb::DB *db;
-  leveldb::Options options;
-  options.create_if_missing = true;
-  auto s = leveldb::DB::Open(options, dataDir, &db);
-  if (!s.ok()) {
-    throw s.ToString();
-  }
   std::vector<std::unique_ptr<Node>> nodes;
   for (int i = 0; i < global.nodes.size(); i++) {
     const std::unique_ptr<EmuNode> &emuNode = global.nodes[i];
-    std::unique_ptr<Node> node = std::make_unique<Node>(emuNode->id, emuNode->addr, db);
+    std::unique_ptr<Node> node = std::make_unique<Node>(emuNode->id, emuNode->addr);
     nodes.push_back(std::move(node));
   }
   for (auto &node : nodes)
     for (auto peer : global.nodes[node->addr]->peers)
       node->addPeer(nodes[peer]);
+  std::shared_ptr<Block> genesisBlock = std::make_shared<Block>(0, 0, 0, std::vector<std::shared_ptr<Transaction>>{});
+  for (auto &node : nodes) {
+    node->blocksByNumber[genesisBlock->number()] = genesisBlock;
+    node->blocksByHash[genesisBlock->hash()] = genesisBlock;
+  }
   std::priority_queue<Event *, std::vector<Event *>, CompareEvent> events;
   events.push(new TxTimerEvent(0));
   events.push(new BlockTimerEvent(0));
@@ -86,7 +79,7 @@ void ethemu(const std::string &dataDir, uint64_t simTime) {
     if (event->timestamp > simTime)
       break;
     events.pop();
-    event->process(events, db, nodes);
+    event->process(events, nodes);
     if (typeid(*event) == typeid(BlockTimerEvent))
       std::cout << event->toString() << std::endl;
     delete event;
@@ -96,5 +89,4 @@ void ethemu(const std::string &dataDir, uint64_t simTime) {
     events.pop();
     delete event;
   }
-  delete db;
 }
