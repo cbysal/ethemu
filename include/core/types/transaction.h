@@ -3,7 +3,6 @@
 #include <string>
 
 #include "common/math.h"
-#include "common/types.h"
 
 struct Transaction {
   uint64_t from;
@@ -18,28 +17,19 @@ struct Transaction {
     this->nonce = nonce;
   }
 
-  Hash hash() const {
-    std::string raw = bytes();
-    Hash h;
-    int off = 0;
-    for (char b : raw) {
-      h.data[off] ^= b;
-      off = (off + 1) % 32;
-    }
-    return h;
-  }
+  uint64_t hash() const { return (from << 48) | (to << 32) | nonce; }
 
   void parse(const std::string &data) {
-    from = u64FromString(data.substr(0, 8));
-    to = u64FromString(data.substr(8, 8));
-    nonce = u64FromString(data.substr(16, 8));
+    from = u64FromBytes(data.substr(0, 8));
+    to = u64FromBytes(data.substr(8, 8));
+    nonce = u64FromBytes(data.substr(16, 8));
   }
 
   std::string bytes() const {
     std::string data;
-    data += u64ToString(from);
-    data += u64ToString(to);
-    data += u64ToString(nonce);
+    data += u64ToBytes(from);
+    data += u64ToBytes(to);
+    data += u64ToBytes(nonce);
     return data;
   }
 };

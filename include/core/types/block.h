@@ -4,12 +4,11 @@
 #include <vector>
 
 #include "common/math.h"
-#include "common/types.h"
 #include "core/types/transaction.h"
 
 class Block {
 public:
-  Hash parentHash;
+  uint64_t parentHash;
   uint64_t coinbase;
   uint64_t number;
   std::vector<Transaction *> transactions;
@@ -18,7 +17,7 @@ private:
   Block(){};
 
 public:
-  Block(Hash parentHash, uint64_t coinbase, uint64_t number, const std::vector<Transaction *> &transactions) {
+  Block(uint64_t parentHash, uint64_t coinbase, uint64_t number, const std::vector<Transaction *> &transactions) {
     this->parentHash = parentHash;
     this->coinbase = coinbase;
     this->number = number;
@@ -27,13 +26,13 @@ public:
 
   static Block *parse(const std::string &data) {
     Block *block = new Block();
-    block->parentHash.parse(data.substr(0, 32));
-    block->coinbase = u64FromString(data.substr(32, 8));
-    block->number = u64FromString(data.substr(40, 8));
-    int txNum = (data.length() - 48) / sizeof(Transaction);
+    block->parentHash = u64FromBytes(data.substr(0, 8));
+    block->coinbase = u64FromBytes(data.substr(8, 8));
+    block->number = u64FromBytes(data.substr(16, 8));
+    int txNum = (data.length() - 16) / sizeof(Transaction);
     for (int i = 0; i < txNum; i++) {
       Transaction *tx = new Transaction();
-      tx->parse(data.substr(48 + i * sizeof(Transaction), sizeof(Transaction)));
+      tx->parse(data.substr(16 + i * sizeof(Transaction), sizeof(Transaction)));
       block->transactions.push_back(tx);
     }
     return block;
@@ -41,22 +40,23 @@ public:
 
   std::string bytes() const {
     std::string data;
-    data += parentHash.bytes();
-    data += u64ToString(coinbase);
-    data += u64ToString(number);
+    data += u64ToBytes(parentHash);
+    data += u64ToBytes(coinbase);
+    data += u64ToBytes(number);
     for (auto tx : transactions)
       data += tx->bytes();
     return data;
   }
 
-  Hash hash() const {
-    std::string raw = bytes();
-    Hash h;
-    int off = 0;
-    for (char b : raw) {
-      h.data[off] ^= b;
-      off = (off + 1) % 32;
+  uint64_t hash() const {
+    uint64_t h = 0;
+    h ^= parentHash ^ (parentHash << 32);
+    for (auto tx : transactions) {
+      uint64_t txHash = tx->hash();
+      h ^= txHash ^ (txHash << 32);
     }
+    h &= 0xffffffff00000000;
+    h |= (coinbase << 16) | number;
     return h;
   }
 };

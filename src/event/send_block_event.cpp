@@ -15,5 +15,5 @@ void SendBlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, 
 
 std::string SendBlockEvent::toString() const {
   return "SendBlockEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + ", block: " + block->hash().toString() + ")";
+         ", to: " + idToString(to) + ", block: " + u64ToHex(block->hash()) + ")";
 }

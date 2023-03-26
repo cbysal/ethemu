@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <vector>
 
-#include "common/types.h"
 #include "json.hpp"
 
 using json = nlohmann::json;

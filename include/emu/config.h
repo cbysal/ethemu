@@ -6,7 +6,6 @@
 #include <string>
 #include <unordered_map>
 
-#include "common/types.h"
 #include "emu/types.h"
 #include "json.hpp"
 

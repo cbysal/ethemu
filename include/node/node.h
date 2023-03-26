@@ -5,7 +5,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "common/types.h"
 #include "core/protocols/eth/peer.h"
 #include "core/rawdb/accessors_chain.h"
 #include "core/types/block.h"
@@ -18,7 +17,7 @@ struct Node {
   leveldb::DB *db;
   uint64_t nonce;
   uint64_t current;
-  std::unordered_map<Hash, Transaction *, HashHash> txPool;
+  std::unordered_map<uint64_t, Transaction *> txPool;
   std::vector<Peer *> peerList;
   std::unordered_map<uint64_t, Peer *> peerMap;
 

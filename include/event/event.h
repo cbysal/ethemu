@@ -4,7 +4,6 @@
 #include <string>
 #include <unordered_map>
 
-#include "common/types.h"
 #include "node/node.h"
 
 class CompareEvent;

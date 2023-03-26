@@ -11,15 +11,16 @@ void RecvBlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, 
                              const std::unordered_map<uint64_t, Node *> &nodeMap) {
   Node *node = nodeMap.at(to);
   node->insertBlock(block);
+  uint64_t hash = block->hash();
   for (auto peer : node->peerList) {
-    if (!peer->knownBlock(block->hash())) {
+    if (!peer->knownBlock(hash)) {
       queue.push(new SendBlockEvent(timestamp, to, peer->addr, block));
-      peer->markBlock(block->hash());
+      peer->markBlock(hash);
     }
   }
 }
 
 std::string RecvBlockEvent::toString() const {
   return "RecvBlockEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + ", block: " + block->hash().toString() + ")";
+         ", to: " + idToString(to) + ", block: " + u64ToHex(block->hash()) + ")";
 }

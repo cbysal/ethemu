@@ -2,26 +2,24 @@
 
 #include <unordered_set>
 
-#include "common/types.h"
-
 const int maxKnownTxs = 32768;
 const int maxKnownBlocks = 1024;
 
 class KnownCache {
 private:
   int max;
-  std::unordered_set<Hash, HashHash> hashes;
+  std::unordered_set<uint64_t> hashes;
 
 public:
   KnownCache(int max) { this->max = max; }
 
-  void add(Hash hash) {
+  void add(uint64_t hash) {
     while (hashes.size() > std::max<size_t>(0, max - hashes.size()))
       hashes.erase(hashes.begin());
     hashes.insert(hash);
   }
 
-  bool contains(Hash hash) { return hashes.count(hash); }
+  bool contains(uint64_t hash) { return hashes.count(hash); }
 
   size_t size() { return hashes.size(); }
 };
@@ -45,8 +43,8 @@ public:
     delete knownTxs;
   }
 
-  bool knownBlock(Hash hash) { return knownBlocks->contains(hash); }
-  bool knownTransaction(Hash hash) { return knownTxs->contains(hash); }
-  void markBlock(Hash hash) { knownBlocks->add(hash); }
-  void markTransaction(Hash hash) { knownTxs->add(hash); }
+  bool knownBlock(uint64_t hash) { return knownBlocks->contains(hash); }
+  bool knownTransaction(uint64_t hash) { return knownTxs->contains(hash); }
+  void markBlock(uint64_t hash) { knownBlocks->add(hash); }
+  void markTransaction(uint64_t hash) { knownTxs->add(hash); }
 };

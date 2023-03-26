@@ -20,5 +20,5 @@ void RecvTxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Com
 
 std::string RecvTxEvent::toString() const {
   return "RecvTxEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + ", tx: " + tx->hash().toString() + ")";
+         ", to: " + idToString(to) + ", tx: " + u64ToHex(tx->hash()) + ")";
 }
