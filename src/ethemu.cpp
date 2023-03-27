@@ -27,9 +27,9 @@ Option peerMaxOpt("peer.max", "Restrict the maximum peer num for each node",
 Option delayMinOpt("delay.min", "Minimum delay between peers", cxxopts::value<int>()->default_value("500"));
 Option delayMaxOpt("delay.max", "Maximum delay between peers", cxxopts::value<int>()->default_value("1000"));
 Option txMinOpt("tx.min", "Restrict the minimum transaction num sent during each block time",
-                cxxopts::value<int>()->default_value("30"));
+                cxxopts::value<int>()->default_value("150"));
 Option txMaxOpt("tx.max", "Restrict the maximum transaction num sent during each block time",
-                cxxopts::value<int>()->default_value("50"));
+                cxxopts::value<int>()->default_value("170"));
 Option blockTimeOpt("block.time", "Interval of consensus for blocks", cxxopts::value<int>()->default_value("30"));
 Option simTimeOpt("sim.time", "Time limit of the simulation", cxxopts::value<int>()->default_value("1000000"));
 Option verbosityOpt("verbosity", "Show all outputs if it is on", cxxopts::value<bool>());
