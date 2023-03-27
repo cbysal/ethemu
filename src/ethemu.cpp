@@ -1,3 +1,4 @@
+#include <csignal>
 #include <iostream>
 #include <queue>
 
@@ -96,4 +97,8 @@ void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
     events.pop();
     delete event;
   }
+  std::cerr << "Mem: ";
+  pid_t pid = getpid();
+  system(std::string("cat /proc/" + std::to_string(pid) + "/status | grep VmHWM | awk '{print $2 $3}' > /dev/fd/2")
+             .data());
 }
