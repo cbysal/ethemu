@@ -11,7 +11,7 @@
 class Block {
 public:
   std::shared_ptr<Header> header;
-  std::vector<std::shared_ptr<Transaction>> transactions;
+  std::vector<std::shared_ptr<Transaction>> txs;
 
 private:
   Block(){};
@@ -26,10 +26,11 @@ private:
   }
 
 public:
-  Block(uint64_t parentHash, uint64_t coinbase, uint64_t number,
-        const std::vector<std::shared_ptr<Transaction>> &transactions)
-      : header(std::make_shared<Header>(parentHash, coinbase, number, txsHash(transactions))),
-        transactions(transactions) {}
+  Block(const std::shared_ptr<Header> &header, const std::vector<std::shared_ptr<Transaction>> &txs)
+      : header(header), txs(txs) {}
+
+  Block(uint64_t parentHash, uint64_t coinbase, uint64_t number, const std::vector<std::shared_ptr<Transaction>> &txs)
+      : header(std::make_shared<Header>(parentHash, coinbase, number, txsHash(txs))), txs(txs) {}
 
   static std::unique_ptr<Block> parse(const std::string &data) {
     Block *block = new Block();
@@ -38,7 +39,7 @@ public:
     for (int i = 0; i < txNum; i++) {
       std::unique_ptr<Transaction> tx =
           Transaction::parse(data.substr(24 + i * sizeof(Transaction), sizeof(Transaction)));
-      block->transactions.push_back(std::move(tx));
+      block->txs.push_back(std::move(tx));
     }
     return std::unique_ptr<Block>(block);
   }
@@ -47,13 +48,13 @@ public:
 
   std::string bytes() const {
     std::string data;
-    data.resize(32 + transactions.size() * sizeof(Transaction));
+    data.resize(32 + txs.size() * sizeof(Transaction));
     char *dataPtr = data.data();
     std::string headerBytes = header->bytes();
     char *headerBytesPtr = headerBytes.data();
     std::memcpy(dataPtr, headerBytesPtr, 32);
-    for (int i = 0; i < transactions.size(); i++) {
-      std::string txBytes = transactions[i]->bytes();
+    for (int i = 0; i < txs.size(); i++) {
+      std::string txBytes = txs[i]->bytes();
       char *txBytesPtr = txBytes.data();
       std::memcpy(dataPtr + 16 + i * sizeof(Transaction), txBytesPtr, sizeof(Transaction));
     }

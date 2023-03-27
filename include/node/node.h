@@ -21,11 +21,20 @@ struct Node {
   std::vector<uint64_t> peerList;
   std::unordered_map<uint64_t, Peer *> peerMap;
 
+  uint64_t nextFetchHeaderTime;
+  uint64_t nextFetchBodyTime;
+
+  std::unordered_map<uint64_t, std::vector<uint64_t>> fetchingHeaders;
+  std::unordered_map<uint64_t, std::shared_ptr<Header>> fetchedHeaders;
+  std::unordered_map<uint64_t, std::vector<uint64_t>> fetchingBodies;
+
   Node(uint64_t id, uint64_t addr) {
     this->id = id;
     this->addr = addr;
     this->nonce = 0;
     this->current = 0;
+    this->nextFetchHeaderTime = 0;
+    this->nextFetchBodyTime = 0;
   }
 
   ~Node() {

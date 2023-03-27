@@ -5,7 +5,9 @@
 #include "emu/config.h"
 #include "ethemu.h"
 #include "event/block_timer_event.h"
+#include "event/body_fetch_timer_event.h"
 #include "event/event.h"
+#include "event/header_fetch_timer_event.h"
 #include "event/tx_timer_event.h"
 #include "node/node.h"
 
@@ -29,16 +31,17 @@ Option txMaxOpt("tx.max", "Restrict the maximum transaction num sent during each
                 cxxopts::value<int>()->default_value("50"));
 Option blockTimeOpt("block.time", "Interval of consensus for blocks", cxxopts::value<int>()->default_value("30"));
 Option simTimeOpt("sim.time", "Time limit of the simulation", cxxopts::value<int>()->default_value("1000000"));
+Option verbosityOpt("verbosity", "Show all outputs if it is on", cxxopts::value<bool>());
 
 std::vector<Option> opts = {datadirOpt,  nodesOpt, minersOption, peerMinOpt,   peerMaxOpt, delayMinOpt,
-                            delayMaxOpt, txMinOpt, txMaxOpt,     blockTimeOpt, simTimeOpt};
+                            delayMaxOpt, txMinOpt, txMaxOpt,     blockTimeOpt, simTimeOpt, verbosityOpt};
 
 int main(int argc, char *argv[]) {
   std::for_each(opts.begin(), opts.end(), [](auto opt) { options.add_option("", opt); });
   auto result = options.parse(argc, argv);
   switch (result.unmatched().size()) {
   case 0:
-    ethemu(result["datadir"].as<std::string>(), result["sim.time"].as<int>());
+    ethemu(result["datadir"].as<std::string>(), result["sim.time"].as<int>(), result["verbosity"].as<bool>());
     break;
   case 1: {
     auto subcmd = result.unmatched()[0];
@@ -55,7 +58,7 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void ethemu(const std::string &dataDir, uint64_t simTime) {
+void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
   loadConfig(dataDir);
   std::vector<std::unique_ptr<Node>> nodes;
   for (int i = 0; i < global.nodes.size(); i++) {
@@ -74,13 +77,17 @@ void ethemu(const std::string &dataDir, uint64_t simTime) {
   std::priority_queue<Event *, std::vector<Event *>, CompareEvent> events;
   events.push(new TxTimerEvent(0));
   events.push(new BlockTimerEvent(0));
+  for (auto &node : nodes) {
+    events.push(new HeaderFetchTimerEvent(0, node->id));
+    events.push(new BodyFetchTimerEvent(0, node->id));
+  }
   while (!events.empty()) {
     Event *event = events.top();
     if (event->timestamp > simTime)
       break;
     events.pop();
     event->process(events, nodes);
-    if (typeid(*event) == typeid(BlockTimerEvent))
+    if (verbosity || typeid(*event) == typeid(BlockTimerEvent))
       std::cout << event->toString() << std::endl;
     delete event;
   }
