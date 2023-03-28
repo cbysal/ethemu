@@ -1,6 +1,5 @@
 #include "event/block_hash_event.h"
 #include "emu/config.h"
-#include "event/block_req_event.h"
 
 BlockHashEvent::BlockHashEvent(uint64_t timestamp, uint64_t from, uint64_t to, uint64_t blockHash)
     : Event(timestamp), from(from), to(to), blockHash(blockHash) {}
