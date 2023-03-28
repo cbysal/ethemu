@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/protocols/eth/peer.h"
+#include "core/txpool/txpool.h"
 #include "core/types/block.h"
 #include "core/types/transaction.h"
 
@@ -13,7 +14,7 @@ struct Node {
   Id id;
   uint16_t nonce;
   uint64_t current;
-  std::unordered_map<Hash, Tx> txPool;
+  TxPool txPool;
   std::unordered_map<Hash, std::shared_ptr<Block>> blocksByNumber;
   std::unordered_map<Hash, std::shared_ptr<Block>> blocksByHash;
   std::vector<Id> peerList;
@@ -49,6 +50,7 @@ struct Node {
     blocksByHash[block->hash()] = block;
     current = block->number();
     for (Tx tx : block->txs)
-      txPool.erase(hashTx(tx));
+      txPool.removeTx(tx);
   }
+  std::vector<Tx> getTxs() { return txPool.pollTxs(); }
 };

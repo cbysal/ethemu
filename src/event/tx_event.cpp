@@ -12,7 +12,7 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
                       const std::vector<std::unique_ptr<Node>> &nodes) const {
   const std::unique_ptr<Node> &node = nodes[to];
   Hash hash = hashTx(tx);
-  node->txPool[hash] = tx;
+  node->txPool.addTx(tx);
   std::vector<Peer *> peersWithoutTxs;
   for (auto &[_, peer] : node->peerMap)
     if (!peer->knownTransaction(hash))

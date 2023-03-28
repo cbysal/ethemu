@@ -7,12 +7,7 @@ void BlockTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>,
                               const std::vector<std::unique_ptr<Node>> &nodes) const {
   const std::unique_ptr<Node> &node = nodes[rand() % nodes.size()];
   std::shared_ptr<Block> parentBlock = node->blocksByNumber[node->current];
-  std::vector<Tx> txs;
-  for (auto &[hash, tx] : node->txPool) {
-    txs.push_back(tx);
-    if (txs.size() >= 200)
-      break;
-  }
+  std::vector<Tx> txs = node->getTxs();
   std::shared_ptr<Block> block = std::make_shared<Block>(parentBlock->hash(), node->id, parentBlock->number() + 1, txs);
   queue.push(new BlockEvent(timestamp, node->id, node->id, block));
   queue.push(new BlockTimerEvent(timestamp + 15000));
