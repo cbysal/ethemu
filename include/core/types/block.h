@@ -28,7 +28,7 @@ private:
 public:
   Block(const std::shared_ptr<Header> &header, const std::vector<Tx> &txs) : header(header), txs(txs) {}
 
-  Block(Hash parentHash, uint16_t coinbase, uint32_t number, const std::vector<Tx> &txs)
+  Block(Hash parentHash, Id coinbase, uint32_t number, const std::vector<Tx> &txs)
       : header(std::make_shared<Header>(parentHash, coinbase, number, txsHash(txs))), txs(txs) {}
 
   uint32_t number() const { return header->number; }

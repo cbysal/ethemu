@@ -3,7 +3,7 @@
 
 #include "common/math.h"
 
-std::string idToString(uint64_t id) {
+std::string idToString(Id id) {
   std::stringstream ss;
   ss << "emu" << std::setfill('0') << std::setw(6) << id;
   return ss.str();

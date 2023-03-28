@@ -2,6 +2,7 @@
 
 #include <unordered_set>
 
+using Id = uint16_t;
 using Hash = uint32_t;
 
 const int maxKnownTxs = 32768;
@@ -30,9 +31,9 @@ private:
   KnownCache *knownTxs;
 
 public:
-  uint16_t id;
+  Id id;
 
-  Peer(uint16_t id) {
+  Peer(Id id) {
     this->id = id;
     this->knownBlocks = new KnownCache(maxKnownBlocks);
     this->knownTxs = new KnownCache(maxKnownTxs);

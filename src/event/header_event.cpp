@@ -2,7 +2,7 @@
 #include "common/math.h"
 #include "emu/config.h"
 
-HeaderEvent::HeaderEvent(uint64_t timestamp, uint16_t from, uint16_t to, const std::shared_ptr<Header> &header)
+HeaderEvent::HeaderEvent(uint64_t timestamp, Id from, Id to, const std::shared_ptr<Header> &header)
     : Event(timestamp), from(from), to(to), header(header) {}
 
 void HeaderEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,

@@ -3,7 +3,7 @@
 #include "emu/config.h"
 #include "event/header_event.h"
 
-HeaderReqEvent::HeaderReqEvent(uint64_t timestamp, uint16_t from, uint16_t to, Hash blockHash)
+HeaderReqEvent::HeaderReqEvent(uint64_t timestamp, Id from, Id to, Hash blockHash)
     : Event(timestamp), from(from), to(to), blockHash(blockHash) {}
 
 void HeaderReqEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,

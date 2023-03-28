@@ -2,12 +2,13 @@
 
 #include <cstdint>
 
+using Id = uint16_t;
 using Hash = uint32_t;
 
 class Header {
 public:
   Hash parentHash;
-  uint16_t coinbase;
+  Id coinbase;
   uint32_t number;
   Hash txsRoot;
 
@@ -15,7 +16,7 @@ private:
   Header() {}
 
 public:
-  Header(Hash parentHash, uint16_t coinbase, uint32_t number, Hash txsRoot)
+  Header(Hash parentHash, Id coinbase, uint32_t number, Hash txsRoot)
       : parentHash(parentHash), coinbase(coinbase), number(number), txsRoot(txsRoot) {}
 
   Hash hash() const {

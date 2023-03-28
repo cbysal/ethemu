@@ -10,23 +10,23 @@
 #include "core/types/transaction.h"
 
 struct Node {
-  uint16_t id;
+  Id id;
   uint16_t nonce;
   uint64_t current;
   std::unordered_map<Hash, Tx> txPool;
   std::unordered_map<Hash, std::shared_ptr<Block>> blocksByNumber;
   std::unordered_map<Hash, std::shared_ptr<Block>> blocksByHash;
-  std::vector<uint16_t> peerList;
-  std::unordered_map<uint16_t, Peer *> peerMap;
+  std::vector<Id> peerList;
+  std::unordered_map<Id, Peer *> peerMap;
 
   uint64_t nextFetchHeaderTime;
   uint64_t nextFetchBodyTime;
 
-  std::unordered_map<Hash, std::vector<uint16_t>> fetchingHeaders;
+  std::unordered_map<Hash, std::vector<Id>> fetchingHeaders;
   std::unordered_map<Hash, std::shared_ptr<Header>> fetchedHeaders;
-  std::unordered_map<Hash, std::vector<uint16_t>> fetchingBodies;
+  std::unordered_map<Hash, std::vector<Id>> fetchingBodies;
 
-  Node(uint16_t id) {
+  Node(Id id) {
     this->id = id;
     this->nonce = 0;
     this->current = 0;

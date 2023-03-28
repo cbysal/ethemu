@@ -15,7 +15,7 @@ void loadConfig(const std::string &dataDir) {
   global.minTxInterval = data["minTxInterval"];
   global.maxTxInterval = data["maxTxInterval"];
   for (auto [key, value] : data["nodes"].items()) {
-    uint16_t id = std::stoi(key);
+    Id id = std::stoi(key);
     std::unique_ptr<EmuNode> node = std::make_unique<EmuNode>();
     node->id = value["id"];
     node->isMiner = value["isMiner"];

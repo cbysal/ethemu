@@ -4,7 +4,7 @@
 #include "event/block_event.h"
 #include "event/block_hash_event.h"
 
-BodyEvent::BodyEvent(uint64_t timestamp, uint16_t from, uint16_t to, Hash blockHash, const std::vector<Tx> &txs)
+BodyEvent::BodyEvent(uint64_t timestamp, Id from, Id to, Hash blockHash, const std::vector<Tx> &txs)
     : Event(timestamp), from(from), to(to), blockHash(blockHash), txs(txs) {}
 
 void BodyEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,

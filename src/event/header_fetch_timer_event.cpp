@@ -1,10 +1,11 @@
 #include "event/header_fetch_timer_event.h"
+#include "common/math.h"
 #include "emu/config.h"
 #include "event/header_req_event.h"
 
 const uint64_t headerFetchInterval = 500;
 
-HeaderFetchTimerEvent::HeaderFetchTimerEvent(uint64_t timestamp, uint16_t id) : Event(timestamp), id(id) {}
+HeaderFetchTimerEvent::HeaderFetchTimerEvent(uint64_t timestamp, Id id) : Event(timestamp), id(id) {}
 
 void HeaderFetchTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                                     const std::vector<std::unique_ptr<Node>> &nodes) const {
@@ -14,7 +15,7 @@ void HeaderFetchTimerEvent::process(std::priority_queue<Event *, std::vector<Eve
     return;
   }
   for (auto &[blockHash, owners] : node->fetchingHeaders) {
-    uint64_t to = owners[rand() % owners.size()];
+    Id to = owners[rand() % owners.size()];
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
     queue.push(new HeaderReqEvent(timestamp + interval, id, to, blockHash));
   }
@@ -24,5 +25,5 @@ void HeaderFetchTimerEvent::process(std::priority_queue<Event *, std::vector<Eve
 }
 
 std::string HeaderFetchTimerEvent::toString() const {
-  return "HeaderFetchTimerEvent (timestamp: " + std::to_string(timestamp) + ", id: " + std::to_string(id) + ")";
+  return "HeaderFetchTimerEvent (timestamp: " + std::to_string(timestamp) + ", id: " + idToString(id) + ")";
 }

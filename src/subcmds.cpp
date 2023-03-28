@@ -47,11 +47,9 @@ void setPeers(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<E
       }
     }
   } while (toContinue);
-  for (int i = 0; i < nodes.size(); i++) {
-    for (int j : peers[i]) {
+  for (int i = 0; i < nodes.size(); i++)
+    for (int j : peers[i])
       nodes[i]->peers.push_back(nodes[j]->id);
-    }
-  }
 }
 
 void gen(const cxxopts::ParseResult &options) {

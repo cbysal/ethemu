@@ -3,7 +3,7 @@
 #include "emu/config.h"
 #include "event/body_event.h"
 
-BodyReqEvent::BodyReqEvent(uint64_t timestamp, uint16_t from, uint16_t to, Hash blockHash)
+BodyReqEvent::BodyReqEvent(uint64_t timestamp, Id from, Id to, Hash blockHash)
     : Event(timestamp), from(from), to(to), blockHash(blockHash) {}
 
 void BodyReqEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,

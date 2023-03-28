@@ -6,10 +6,12 @@
 
 using json = nlohmann::json;
 
+using Id = uint16_t;
+
 struct EmuNode {
-  uint16_t id;
+  Id id;
   bool isMiner;
-  std::vector<uint16_t> peers;
+  std::vector<Id> peers;
 
   json toJson() const {
     json data;

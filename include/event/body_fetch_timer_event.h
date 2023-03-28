@@ -4,9 +4,9 @@
 
 class BodyFetchTimerEvent : public Event {
 public:
-  uint16_t id;
+  Id id;
 
-  BodyFetchTimerEvent(uint64_t timestamp, uint16_t id);
+  BodyFetchTimerEvent(uint64_t timestamp, Id id);
 
   void process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                const std::vector<std::unique_ptr<Node>> &nodes) const;
