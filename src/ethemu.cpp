@@ -64,11 +64,11 @@ void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
   std::vector<std::unique_ptr<Node>> nodes;
   for (int i = 0; i < global.nodes.size(); i++) {
     const std::unique_ptr<EmuNode> &emuNode = global.nodes[i];
-    std::unique_ptr<Node> node = std::make_unique<Node>(emuNode->id, emuNode->addr);
+    std::unique_ptr<Node> node = std::make_unique<Node>(emuNode->id);
     nodes.push_back(std::move(node));
   }
   for (auto &node : nodes)
-    for (auto peer : global.nodes[node->addr]->peers)
+    for (auto peer : global.nodes[node->id]->peers)
       node->addPeer(nodes[peer]);
   std::shared_ptr<Block> genesisBlock = std::make_shared<Block>(0, 0, 0, std::vector<std::shared_ptr<Transaction>>{});
   for (auto &node : nodes) {

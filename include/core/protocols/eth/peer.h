@@ -30,10 +30,10 @@ private:
   KnownCache *knownTxs;
 
 public:
-  uint64_t addr;
+  uint64_t id;
 
-  Peer(uint64_t addr) {
-    this->addr = addr;
+  Peer(uint64_t id) {
+    this->id = id;
     this->knownBlocks = new KnownCache(maxKnownBlocks);
     this->knownTxs = new KnownCache(maxKnownTxs);
   }

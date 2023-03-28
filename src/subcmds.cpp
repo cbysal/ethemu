@@ -14,12 +14,6 @@ void setId(std::vector<std::unique_ptr<EmuNode>> &nodes) {
     nodes[i]->id = i;
 }
 
-void setAddr(std::vector<std::unique_ptr<EmuNode>> &nodes) {
-  for (int i = 0; i < nodes.size(); i++) {
-    nodes[i]->addr = i;
-  }
-}
-
 void setMiners(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<EmuNode>> &nodes) {
   srand(time(nullptr));
   int num = options["miners"].as<int>();
@@ -57,7 +51,7 @@ void setPeers(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<E
   } while (toContinue);
   for (int i = 0; i < nodes.size(); i++) {
     for (int j : peers[i]) {
-      nodes[i]->peers.push_back(nodes[j]->addr);
+      nodes[i]->peers.push_back(nodes[j]->id);
     }
   }
 }
@@ -74,7 +68,6 @@ void gen(const cxxopts::ParseResult &options) {
     nodes[i] = std::make_unique<EmuNode>();
   }
   setId(nodes);
-  setAddr(nodes);
   setMiners(options, nodes);
   setPeers(options, nodes);
   global.period = options["block.time"].as<int>();
@@ -82,8 +75,7 @@ void gen(const cxxopts::ParseResult &options) {
   global.maxDelay = options["delay.max"].as<int>();
   global.minTxInterval = global.period * 1000 / options["tx.max"].as<int>();
   global.maxTxInterval = global.period * 1000 / options["tx.min"].as<int>();
-  for (auto &node : nodes) {
-    global.nodes[node->addr] = std::move(node);
-  }
+  for (auto &node : nodes)
+    global.nodes[node->id] = std::move(node);
   storeConfig(dataDir);
 }

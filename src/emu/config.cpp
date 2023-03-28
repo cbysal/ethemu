@@ -14,17 +14,16 @@ void loadConfig(const std::string &dataDir) {
   global.minTxInterval = data["minTxInterval"];
   global.maxTxInterval = data["maxTxInterval"];
   for (auto [key, value] : data["nodes"].items()) {
-    uint64_t addr = std::stoi(key);
+    uint64_t id = std::stoi(key);
     std::unique_ptr<EmuNode> node = std::make_unique<EmuNode>();
     node->id = value["id"];
-    node->addr = value["addr"];
     node->isMiner = value["isMiner"];
     json::array_t peersJson;
     for (auto p : value["peers"]) {
       uint64_t peer = p;
       node->peers.push_back(peer);
     }
-    global.nodes[addr] = std::move(node);
+    global.nodes[id] = std::move(node);
   }
 }
 
@@ -35,9 +34,9 @@ void storeConfig(const std::string &dataDir) {
   data["maxDelay"] = global.maxDelay;
   data["minTxInterval"] = global.minTxInterval;
   data["maxTxInterval"] = global.maxTxInterval;
-  for (auto &[addr, node] : global.nodes) {
+  for (auto &[id, node] : global.nodes) {
     json nodeJson = node->toJson();
-    data["nodes"][std::to_string(addr)] = nodeJson;
+    data["nodes"][std::to_string(id)] = nodeJson;
   }
   const std::string configPath = std::filesystem::path(dataDir) / CONFIG_JSON;
   std::ofstream ofs(configPath);

@@ -19,13 +19,13 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
   for (int i = 0; i < std::sqrt(peersWithoutTxs.size()); i++) {
     Peer *peer = peersWithoutTxs[i];
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
-    queue.push(new TxEvent(timestamp + interval, to, peer->addr, tx));
+    queue.push(new TxEvent(timestamp + interval, to, peer->id, tx));
     peer->markTransaction(hash);
   }
   for (int i = std::sqrt(peersWithoutTxs.size()); i < peersWithoutTxs.size(); i++) {
     Peer *peer = peersWithoutTxs[i];
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
-    queue.push(new TxHashEvent(timestamp + interval, to, peer->addr, hash));
+    queue.push(new TxHashEvent(timestamp + interval, to, peer->id, hash));
     peer->markTransaction(hash);
   }
 }

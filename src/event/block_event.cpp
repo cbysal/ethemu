@@ -17,13 +17,13 @@ void BlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, Comp
   for (int i = 0; i < std::sqrt(peersWithoutBlock.size()); i++) {
     Peer *peer = peersWithoutBlock[i];
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
-    queue.push(new BlockEvent(timestamp + interval, to, peer->addr, block));
+    queue.push(new BlockEvent(timestamp + interval, to, peer->id, block));
     peer->markBlock(hash);
   }
   for (int i = std::sqrt(peersWithoutBlock.size()); i < peersWithoutBlock.size(); i++) {
     Peer *peer = peersWithoutBlock[i];
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
-    queue.push(new BlockHashEvent(timestamp + interval, to, peer->addr, hash));
+    queue.push(new BlockHashEvent(timestamp + interval, to, peer->id, hash));
     peer->markBlock(hash);
   }
 }
