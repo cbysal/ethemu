@@ -1,6 +1,8 @@
-#include "event/block_event.h"
+#include <iostream>
+
 #include "common/math.h"
 #include "emu/config.h"
+#include "event/block_event.h"
 #include "event/block_hash_event.h"
 
 BlockEvent::BlockEvent(uint64_t timestamp, Id from, Id to, const std::shared_ptr<Block> &block)
@@ -8,6 +10,9 @@ BlockEvent::BlockEvent(uint64_t timestamp, Id from, Id to, const std::shared_ptr
 
 void BlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                          const std::vector<std::unique_ptr<Node>> &nodes) const {
+  if (from == to)
+    std::cout << "New Block (Number: " << block->number() << ", Hash: " << hashHex(block->hash())
+              << ", Coinbase: " << idToString(block->coinbase()) << ", Txs: " << block->txs.size() << ")" << std::endl;
   const std::unique_ptr<Node> &node = nodes[to];
   node->insertBlock(block);
   Hash hash = block->hash();

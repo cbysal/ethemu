@@ -33,5 +33,7 @@ public:
 
   uint32_t number() const { return header->number; }
 
+  Id coinbase() const { return header->coinbase; }
+
   Hash hash() const { return header->hash(); }
 };
