@@ -4,7 +4,7 @@
 #include "event/tx_event.h"
 #include "event/tx_hash_event.h"
 
-TxEvent::TxEvent(uint64_t timestamp, uint64_t from, uint64_t to, const std::shared_ptr<Transaction> &tx)
+TxEvent::TxEvent(uint64_t timestamp, uint16_t from, uint16_t to, const std::shared_ptr<Transaction> &tx)
     : Event(timestamp), from(from), to(to), tx(tx) {}
 
 void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,

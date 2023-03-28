@@ -2,7 +2,7 @@
 #include "emu/config.h"
 #include "event/block_hash_event.h"
 
-BlockEvent::BlockEvent(uint64_t timestamp, uint64_t from, uint64_t to, const std::shared_ptr<Block> &block)
+BlockEvent::BlockEvent(uint64_t timestamp, uint16_t from, uint16_t to, const std::shared_ptr<Block> &block)
     : Event(timestamp), from(from), to(to), block(block) {}
 
 void BlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,

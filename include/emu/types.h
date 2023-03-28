@@ -8,9 +8,9 @@
 using json = nlohmann::json;
 
 struct EmuNode {
-  uint64_t id;
+  uint16_t id;
   bool isMiner;
-  std::vector<uint64_t> peers;
+  std::vector<uint16_t> peers;
 
   json toJson() const {
     json data;

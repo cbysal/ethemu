@@ -3,7 +3,7 @@
 #include "event/block_event.h"
 #include "event/block_hash_event.h"
 
-BodyEvent::BodyEvent(uint64_t timestamp, uint64_t from, uint64_t to, uint64_t blockHash,
+BodyEvent::BodyEvent(uint64_t timestamp, uint16_t from, uint16_t to, uint64_t blockHash,
                      const std::vector<std::shared_ptr<Transaction>> &txs)
     : Event(timestamp), from(from), to(to), blockHash(blockHash), txs(txs) {}
 

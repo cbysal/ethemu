@@ -4,7 +4,7 @@
 
 const uint64_t headerFetchInterval = 500;
 
-HeaderFetchTimerEvent::HeaderFetchTimerEvent(uint64_t timestamp, uint64_t id) : Event(timestamp), id(id) {}
+HeaderFetchTimerEvent::HeaderFetchTimerEvent(uint64_t timestamp, uint16_t id) : Event(timestamp), id(id) {}
 
 void HeaderFetchTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                                     const std::vector<std::unique_ptr<Node>> &nodes) const {

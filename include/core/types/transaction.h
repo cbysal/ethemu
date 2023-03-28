@@ -6,38 +6,19 @@
 
 class Transaction {
 public:
-  uint64_t from;
-  uint64_t to;
-  uint64_t nonce;
+  uint16_t from;
+  uint16_t to;
+  uint16_t nonce;
 
 private:
   Transaction() {}
 
 public:
-  Transaction(uint64_t from, uint64_t to, uint64_t nonce) {
+  Transaction(uint16_t from, uint16_t to, uint16_t nonce) {
     this->from = from;
     this->to = to;
     this->nonce = nonce;
   }
 
-  uint64_t hash() const { return (from << 48) | (to << 32) | nonce; }
-
-  static std::unique_ptr<Transaction> parse(const std::string &data) {
-    Transaction *tx = new Transaction();
-    const char *dataPtr = data.data();
-    tx->from = *((uint64_t *)dataPtr);
-    tx->to = *((uint64_t *)(dataPtr + 8));
-    tx->nonce = *((uint64_t *)(dataPtr + 16));
-    return std::forward<std::unique_ptr<Transaction>>(std::unique_ptr<Transaction>(tx));
-  }
-
-  std::string bytes() const {
-    std::string data;
-    data.resize(24);
-    char *dataPtr = data.data();
-    *((uint64_t *)dataPtr) = from;
-    *((uint64_t *)(dataPtr + 8)) = to;
-    *((uint64_t *)(dataPtr + 16)) = nonce;
-    return data;
-  }
+  uint64_t hash() const { return (uint64_t(from) << 48) | (uint64_t(to) << 32) | nonce; }
 };

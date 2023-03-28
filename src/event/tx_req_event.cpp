@@ -2,7 +2,7 @@
 #include "emu/config.h"
 #include "event/tx_event.h"
 
-TxReqEvent::TxReqEvent(uint64_t timestamp, uint64_t from, uint64_t to, uint64_t txHash)
+TxReqEvent::TxReqEvent(uint64_t timestamp, uint16_t from, uint16_t to, uint64_t txHash)
     : Event(timestamp), from(from), to(to), txHash(txHash) {}
 
 void TxReqEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
