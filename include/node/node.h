@@ -48,5 +48,7 @@ struct Node {
     blocksByNumber[block->number()] = block;
     blocksByHash[block->hash()] = block;
     current = block->number();
+    for (Tx tx : block->txs)
+      txPool.erase(hashTx(tx));
   }
 };
