@@ -3,7 +3,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "core/protocols/eth/peer.h"
@@ -14,18 +13,18 @@ struct Node {
   uint16_t id;
   uint16_t nonce;
   uint64_t current;
-  std::unordered_map<uint64_t, std::shared_ptr<Transaction>> txPool;
-  std::unordered_map<uint64_t, std::shared_ptr<Block>> blocksByNumber;
-  std::unordered_map<uint64_t, std::shared_ptr<Block>> blocksByHash;
+  std::unordered_map<Hash, Tx> txPool;
+  std::unordered_map<Hash, std::shared_ptr<Block>> blocksByNumber;
+  std::unordered_map<Hash, std::shared_ptr<Block>> blocksByHash;
   std::vector<uint16_t> peerList;
   std::unordered_map<uint16_t, Peer *> peerMap;
 
   uint64_t nextFetchHeaderTime;
   uint64_t nextFetchBodyTime;
 
-  std::unordered_map<uint64_t, std::vector<uint16_t>> fetchingHeaders;
-  std::unordered_map<uint64_t, std::shared_ptr<Header>> fetchedHeaders;
-  std::unordered_map<uint64_t, std::vector<uint16_t>> fetchingBodies;
+  std::unordered_map<Hash, std::vector<uint16_t>> fetchingHeaders;
+  std::unordered_map<Hash, std::shared_ptr<Header>> fetchedHeaders;
+  std::unordered_map<Hash, std::vector<uint16_t>> fetchingBodies;
 
   Node(uint16_t id) {
     this->id = id;

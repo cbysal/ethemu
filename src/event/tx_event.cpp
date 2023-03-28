@@ -1,16 +1,17 @@
 #include <cmath>
 
+#include "common/math.h"
 #include "emu/config.h"
 #include "event/tx_event.h"
 #include "event/tx_hash_event.h"
 
-TxEvent::TxEvent(uint64_t timestamp, uint16_t from, uint16_t to, const std::shared_ptr<Transaction> &tx)
+TxEvent::TxEvent(uint64_t timestamp, uint16_t from, uint16_t to, Tx tx)
     : Event(timestamp), from(from), to(to), tx(tx) {}
 
 void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                       const std::vector<std::unique_ptr<Node>> &nodes) const {
   const std::unique_ptr<Node> &node = nodes[to];
-  uint64_t hash = tx->hash();
+  Hash hash = hashTx(tx);
   node->txPool[hash] = tx;
   std::vector<Peer *> peersWithoutTxs;
   for (auto &[_, peer] : node->peerMap)
@@ -32,5 +33,5 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
 
 std::string TxEvent::toString() const {
   return "TxEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + ", tx: " + u64ToHex(tx->hash()) + ")";
+         ", to: " + idToString(to) + ", tx: " + hashHex(hashTx(tx)) + ")";
 }

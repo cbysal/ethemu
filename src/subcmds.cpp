@@ -1,9 +1,7 @@
 #include <filesystem>
-#include <iostream>
 #include <memory>
 #include <unordered_set>
 
-#include "core/types/block.h"
 #include "cxxopts.hpp"
 #include "emu/config.h"
 #include "emu/types.h"

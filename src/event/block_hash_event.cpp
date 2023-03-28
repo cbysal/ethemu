@@ -1,7 +1,8 @@
 #include "event/block_hash_event.h"
+#include "common/math.h"
 #include "emu/config.h"
 
-BlockHashEvent::BlockHashEvent(uint64_t timestamp, uint16_t from, uint16_t to, uint64_t blockHash)
+BlockHashEvent::BlockHashEvent(uint64_t timestamp, uint16_t from, uint16_t to, Hash blockHash)
     : Event(timestamp), from(from), to(to), blockHash(blockHash) {}
 
 void BlockHashEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
@@ -12,5 +13,5 @@ void BlockHashEvent::process(std::priority_queue<Event *, std::vector<Event *>, 
 
 std::string BlockHashEvent::toString() const {
   return "BlockHashEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + ", blockHash: " + u64ToHex(blockHash) + ")";
+         ", to: " + idToString(to) + ", blockHash: " + hashHex(blockHash) + ")";
 }

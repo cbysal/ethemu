@@ -1,4 +1,5 @@
 #include "event/block_timer_event.h"
+#include "event/block_event.h"
 
 BlockTimerEvent::BlockTimerEvent(uint64_t timestamp) : Event(timestamp) {}
 
@@ -6,7 +7,7 @@ void BlockTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>,
                               const std::vector<std::unique_ptr<Node>> &nodes) const {
   const std::unique_ptr<Node> &node = nodes[rand() % nodes.size()];
   std::shared_ptr<Block> parentBlock = node->blocksByNumber[node->current];
-  std::vector<std::shared_ptr<Transaction>> txs;
+  std::vector<Tx> txs;
   for (auto &[hash, tx] : node->txPool) {
     txs.push_back(tx);
     if (txs.size() >= 200)

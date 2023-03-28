@@ -1,28 +1,27 @@
 #pragma once
 
-#include <memory>
-#include <string>
+#include <cstdint>
+
+using Hash = uint32_t;
 
 class Header {
 public:
-  uint64_t parentHash;
+  Hash parentHash;
   uint16_t coinbase;
-  uint64_t number;
-  uint64_t txsRoot;
+  uint32_t number;
+  Hash txsRoot;
 
 private:
   Header() {}
 
 public:
-  Header(uint64_t parentHash, uint16_t coinbase, uint64_t number, uint64_t txsRoot)
+  Header(Hash parentHash, uint16_t coinbase, uint32_t number, Hash txsRoot)
       : parentHash(parentHash), coinbase(coinbase), number(number), txsRoot(txsRoot) {}
 
-  uint64_t hash() const {
-    uint64_t h = 0;
-    h ^= parentHash ^ (parentHash << 32);
-    h ^= txsRoot ^ (txsRoot << 32);
-    h &= 0xffffffff00000000;
-    h |= (coinbase << 16) | number;
-    return h;
+  Hash hash() const {
+    return (((parentHash ^ (parentHash << 8) ^ (parentHash << 16) ^ (parentHash << 24))) & 0xff000000) |
+           (((coinbase << 8) & (coinbase << 16)) & 0x00ff0000) |
+           (((number >> 16) ^ (number >> 8) ^ number ^ (number << 8)) & 0x0000ff0000) |
+           (((txsRoot >> 24) ^ (txsRoot >> 16) ^ (txsRoot >> 8) ^ 8) & 0x000000ff);
   }
 };

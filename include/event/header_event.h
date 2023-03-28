@@ -1,6 +1,5 @@
 #pragma once
 
-#include "core/types/header.h"
 #include "event/event.h"
 
 class HeaderEvent : public Event {

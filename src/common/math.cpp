@@ -9,8 +9,8 @@ std::string idToString(uint64_t id) {
   return ss.str();
 }
 
-std::string u64ToHex(uint64_t value) {
+std::string hashHex(Hash hash) {
   std::stringstream ss;
-  ss << std::hex << std::setfill('0') << std::setw(8) << value;
+  ss << std::hex << std::setfill('0') << std::setw(8) << hash;
   return ss.str();
 }

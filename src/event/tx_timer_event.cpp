@@ -1,4 +1,6 @@
 #include "event/tx_timer_event.h"
+#include "emu/config.h"
+#include "event/tx_event.h"
 
 TxTimerEvent::TxTimerEvent(uint64_t timestamp) : Event(timestamp) {}
 
@@ -9,7 +11,7 @@ void TxTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>, Co
   uint16_t from = rand() % nodes.size();
   const std::unique_ptr<Node> &node = nodes[from];
   uint64_t to = node->peerList[rand() % node->peerList.size()];
-  std::shared_ptr<Transaction> tx = std::make_shared<Transaction>(from, to, node->nextNonce());
+  Tx tx = newTx(from, to, node->nextNonce());
   queue.push(new TxEvent(timestamp, from, from, tx));
 }
 

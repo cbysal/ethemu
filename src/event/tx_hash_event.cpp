@@ -1,4 +1,5 @@
 #include "event/tx_hash_event.h"
+#include "common/math.h"
 #include "emu/config.h"
 #include "event/tx_req_event.h"
 
@@ -13,5 +14,5 @@ void TxHashEvent::process(std::priority_queue<Event *, std::vector<Event *>, Com
 
 std::string TxHashEvent::toString() const {
   return "TxHashEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + ", txHash: " + u64ToHex(txHash) + ")";
+         ", to: " + idToString(to) + ", txHash: " + hashHex(txHash) + ")";
 }

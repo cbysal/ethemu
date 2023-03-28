@@ -1,5 +1,6 @@
+#include <fstream>
+
 #include "emu/config.h"
-#include "common/math.h"
 
 Config global;
 
@@ -19,10 +20,8 @@ void loadConfig(const std::string &dataDir) {
     node->id = value["id"];
     node->isMiner = value["isMiner"];
     json::array_t peersJson;
-    for (auto p : value["peers"]) {
-      uint64_t peer = p;
-      node->peers.push_back(peer);
-    }
+    for (auto p : value["peers"])
+      node->peers.push_back(p);
     global.nodes[id] = std::move(node);
   }
 }

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "emu/config.h"
-#include "event/block_event.h"
 #include "event/event.h"
 
 class BlockTimerEvent : public Event {

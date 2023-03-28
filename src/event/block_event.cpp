@@ -1,4 +1,5 @@
 #include "event/block_event.h"
+#include "common/math.h"
 #include "emu/config.h"
 #include "event/block_hash_event.h"
 
@@ -30,5 +31,5 @@ void BlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, Comp
 
 std::string BlockEvent::toString() const {
   return "BlockEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + ", block: " + u64ToHex(block->hash()) + ")";
+         ", to: " + idToString(to) + ", block: " + hashHex(block->hash()) + ")";
 }

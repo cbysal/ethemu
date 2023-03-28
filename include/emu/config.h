@@ -1,16 +1,8 @@
 #pragma once
 
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <memory>
-#include <string>
 #include <unordered_map>
 
 #include "emu/types.h"
-#include "json.hpp"
-
-using json = nlohmann::json;
 
 const std::string CONFIG_JSON = "config.json";
 

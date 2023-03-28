@@ -1,8 +1,9 @@
 #include "event/header_req_event.h"
+#include "common/math.h"
 #include "emu/config.h"
 #include "event/header_event.h"
 
-HeaderReqEvent::HeaderReqEvent(uint64_t timestamp, uint16_t from, uint16_t to, uint64_t blockHash)
+HeaderReqEvent::HeaderReqEvent(uint64_t timestamp, uint16_t from, uint16_t to, Hash blockHash)
     : Event(timestamp), from(from), to(to), blockHash(blockHash) {}
 
 void HeaderReqEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
@@ -15,5 +16,5 @@ void HeaderReqEvent::process(std::priority_queue<Event *, std::vector<Event *>, 
 
 std::string HeaderReqEvent::toString() const {
   return "HeaderReqEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + ", blockHash: " + u64ToHex(blockHash) + ")";
+         ", to: " + idToString(to) + ", blockHash: " + hashHex(blockHash) + ")";
 }

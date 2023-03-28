@@ -1,10 +1,10 @@
 #include "event/body_event.h"
+#include "common/math.h"
 #include "emu/config.h"
 #include "event/block_event.h"
 #include "event/block_hash_event.h"
 
-BodyEvent::BodyEvent(uint64_t timestamp, uint16_t from, uint16_t to, uint64_t blockHash,
-                     const std::vector<std::shared_ptr<Transaction>> &txs)
+BodyEvent::BodyEvent(uint64_t timestamp, uint16_t from, uint16_t to, Hash blockHash, const std::vector<Tx> &txs)
     : Event(timestamp), from(from), to(to), blockHash(blockHash), txs(txs) {}
 
 void BodyEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
@@ -36,5 +36,5 @@ void BodyEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compa
 
 std::string BodyEvent::toString() const {
   return "BodyEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + ", blockHash: " + u64ToHex(blockHash) + ")";
+         ", to: " + idToString(to) + ", blockHash: " + hashHex(blockHash) + ")";
 }

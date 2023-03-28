@@ -1,8 +1,6 @@
 #pragma once
 
-#include "emu/config.h"
 #include "event/event.h"
-#include "event/tx_event.h"
 
 class TxTimerEvent : public Event {
 public:

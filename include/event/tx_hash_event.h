@@ -6,7 +6,7 @@ class TxHashEvent : public Event {
 public:
   const uint16_t from;
   const uint16_t to;
-  const uint64_t txHash;
+  const Hash txHash;
 
   TxHashEvent(uint64_t timestamp, uint16_t from, uint16_t to, uint64_t txHash);
 

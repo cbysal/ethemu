@@ -2,26 +2,26 @@
 
 #include <unordered_set>
 
+using Hash = uint32_t;
+
 const int maxKnownTxs = 32768;
 const int maxKnownBlocks = 1024;
 
 class KnownCache {
 private:
   int max;
-  std::unordered_set<uint64_t> hashes;
+  std::unordered_set<Hash> hashes;
 
 public:
   KnownCache(int max) { this->max = max; }
 
-  void add(uint64_t hash) {
-    while (hashes.size() > std::max<size_t>(0, max - hashes.size()))
+  void add(Hash hash) {
+    while (hashes.size() > max)
       hashes.erase(hashes.begin());
     hashes.insert(hash);
   }
 
-  bool contains(uint64_t hash) { return hashes.count(hash); }
-
-  size_t size() { return hashes.size(); }
+  bool contains(Hash hash) { return hashes.count(hash); }
 };
 
 class Peer {
@@ -43,8 +43,8 @@ public:
     delete knownTxs;
   }
 
-  bool knownBlock(uint64_t hash) { return knownBlocks->contains(hash); }
-  bool knownTransaction(uint64_t hash) { return knownTxs->contains(hash); }
-  void markBlock(uint64_t hash) { knownBlocks->add(hash); }
-  void markTransaction(uint64_t hash) { knownTxs->add(hash); }
+  bool knownBlock(Hash hash) { return knownBlocks->contains(hash); }
+  bool knownTransaction(Hash hash) { return knownTxs->contains(hash); }
+  void markBlock(Hash hash) { knownBlocks->add(hash); }
+  void markTransaction(Hash hash) { knownTxs->add(hash); }
 };

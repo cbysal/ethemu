@@ -1,13 +1,11 @@
 #include <csignal>
 #include <iostream>
-#include <queue>
 
 #include "cxxopts.hpp"
 #include "emu/config.h"
 #include "ethemu.h"
 #include "event/block_timer_event.h"
 #include "event/body_fetch_timer_event.h"
-#include "event/event.h"
 #include "event/header_fetch_timer_event.h"
 #include "event/tx_timer_event.h"
 #include "node/node.h"
@@ -70,7 +68,7 @@ void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
   for (auto &node : nodes)
     for (auto peer : global.nodes[node->id]->peers)
       node->addPeer(nodes[peer]);
-  std::shared_ptr<Block> genesisBlock = std::make_shared<Block>(0, 0, 0, std::vector<std::shared_ptr<Transaction>>{});
+  std::shared_ptr<Block> genesisBlock = std::make_shared<Block>(0, 0, 0, std::vector<Tx>{});
   for (auto &node : nodes) {
     node->blocksByNumber[genesisBlock->number()] = genesisBlock;
     node->blocksByHash[genesisBlock->hash()] = genesisBlock;

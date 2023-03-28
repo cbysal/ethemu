@@ -1,38 +1,37 @@
 #pragma once
 
-#include <cstring>
 #include <string>
 #include <vector>
 
-#include "common/math.h"
 #include "core/types/header.h"
 #include "core/types/transaction.h"
 
 class Block {
 public:
   std::shared_ptr<Header> header;
-  std::vector<std::shared_ptr<Transaction>> txs;
+  std::vector<Tx> txs;
 
 private:
   Block(){};
 
-  uint64_t txsHash(const std::vector<std::shared_ptr<Transaction>> &txs) const {
-    uint64_t hash = 0;
-    for (int i = 0; i < txs.size(); i++) {
-      uint64_t txHash = txs[i]->hash();
-      hash ^= (txHash << i) | (txHash >> (64 - i));
+  Hash txsHash(const std::vector<Tx> &txs) const {
+    Hash hash = 0;
+    int off = 0;
+    for (Tx tx : txs) {
+      Hash txHash = hashTx(tx);
+      hash ^= (txHash << off) | (txHash >> (32 - off));
+      off = (off + 1) % 32;
     }
     return hash;
   }
 
 public:
-  Block(const std::shared_ptr<Header> &header, const std::vector<std::shared_ptr<Transaction>> &txs)
-      : header(header), txs(txs) {}
+  Block(const std::shared_ptr<Header> &header, const std::vector<Tx> &txs) : header(header), txs(txs) {}
 
-  Block(uint64_t parentHash, uint64_t coinbase, uint64_t number, const std::vector<std::shared_ptr<Transaction>> &txs)
+  Block(Hash parentHash, uint16_t coinbase, uint32_t number, const std::vector<Tx> &txs)
       : header(std::make_shared<Header>(parentHash, coinbase, number, txsHash(txs))), txs(txs) {}
 
-  uint64_t number() const { return header->number; }
+  uint32_t number() const { return header->number; }
 
-  uint64_t hash() const { return header->hash(); }
+  Hash hash() const { return header->hash(); }
 };

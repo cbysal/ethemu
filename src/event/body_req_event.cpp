@@ -1,8 +1,9 @@
 #include "event/body_req_event.h"
+#include "common/math.h"
 #include "emu/config.h"
 #include "event/body_event.h"
 
-BodyReqEvent::BodyReqEvent(uint64_t timestamp, uint16_t from, uint16_t to, uint64_t blockHash)
+BodyReqEvent::BodyReqEvent(uint64_t timestamp, uint16_t from, uint16_t to, Hash blockHash)
     : Event(timestamp), from(from), to(to), blockHash(blockHash) {}
 
 void BodyReqEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
@@ -15,5 +16,5 @@ void BodyReqEvent::process(std::priority_queue<Event *, std::vector<Event *>, Co
 
 std::string BodyReqEvent::toString() const {
   return "BodyReqEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + ", blockHash: " + u64ToHex(blockHash) + ")";
+         ", to: " + idToString(to) + ", blockHash: " + hashHex(blockHash) + ")";
 }
