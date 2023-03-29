@@ -49,8 +49,7 @@ struct Node {
     blocksByNumber[block->number()] = block;
     blocksByHash[block->hash()] = block;
     current = block->number();
-    for (Tx tx : block->txs)
-      txPool.removeTx(tx);
+    txPool.notifyBlockTxs(block->txs);
   }
   std::vector<Tx> getTxs() { return txPool.pollTxs(); }
 };

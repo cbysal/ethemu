@@ -25,9 +25,7 @@ private:
   void reorg() {
     for (auto &[id, queuedTxs] : queued) {
       while (queuedTxs.count(noncer[id])) {
-        if (pendingSize >= globalSlots)
-          return;
-        if (pending[id].size() >= accountSlots)
+        if (pendingSize >= globalSlots && pending[id].size() >= accountSlots)
           break;
         pending[id].emplace(noncer[id], queuedTxs[noncer[id]]);
         pendingSize++;
@@ -52,13 +50,28 @@ public:
     queuedSize++;
   }
 
-  void removeTx(Tx tx) {
-    Id from = (tx >> 16) & 0xffff;
-    uint16_t nonce = tx & 0xffff;
-    if (!queued[from].count(nonce))
-      return;
-    queued[from].erase(nonce);
-    queuedSize--;
+  void notifyBlockTxs(std::vector<Tx> txs) {
+    std::unordered_map<Id, uint16_t> maxNonces;
+    for (Tx tx : txs) {
+      Id id = tx >> 16;
+      uint16_t nonce = tx;
+      maxNonces[id] = std::max(maxNonces[id], nonce);
+    }
+    for (const auto &[id, maxNonce] : maxNonces) {
+      auto &pendingTxs = pending[id];
+      auto &queuedTxs = queued[id];
+      for (int i = 0; i < maxNonce; i++) {
+        if (pendingTxs.count(i)) {
+          pendingTxs.erase(i);
+          pendingSize--;
+        }
+        if (queuedTxs.count(i)) {
+          queuedTxs.erase(i);
+          queuedSize--;
+        }
+      }
+      noncer[id] = maxNonce + 1;
+    }
   }
 
   Tx get(Hash hash) {
