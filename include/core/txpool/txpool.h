@@ -50,27 +50,32 @@ public:
     queuedSize++;
   }
 
-  void notifyBlockTxs(std::vector<Tx> txs) {
+  void notifyBlockTxs(const std::vector<Tx> &txs) {
     std::unordered_map<Id, uint16_t> maxNonces;
     for (Tx tx : txs) {
       Id id = tx >> 16;
       uint16_t nonce = tx;
       maxNonces[id] = std::max(maxNonces[id], nonce);
     }
-    for (const auto &[id, maxNonce] : maxNonces) {
+    for (const auto &[id, newNonce] : maxNonces) {
       auto &pendingTxs = pending[id];
       auto &queuedTxs = queued[id];
-      for (int i = 0; i < maxNonce; i++) {
+      uint16_t oldNonce = noncer[id];
+      for (int i = oldNonce - 1; i >= 0; i--) {
         if (pendingTxs.count(i)) {
           pendingTxs.erase(i);
           pendingSize--;
+          continue;
         }
+        break;
+      }
+      for (int i = oldNonce; i <= newNonce; i++) {
         if (queuedTxs.count(i)) {
           queuedTxs.erase(i);
           queuedSize--;
         }
       }
-      noncer[id] = maxNonce + 1;
+      noncer[id] = newNonce + 1;
     }
   }
 
