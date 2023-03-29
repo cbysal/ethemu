@@ -2,6 +2,8 @@
 
 #include "event/event.h"
 
+extern const uint64_t headerFetchInterval;
+
 class HeaderFetchTimerEvent : public Event {
 public:
   Id id;

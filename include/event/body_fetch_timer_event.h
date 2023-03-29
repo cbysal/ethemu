@@ -2,6 +2,8 @@
 
 #include "event/event.h"
 
+extern const uint64_t bodyFetchInterval;
+
 class BodyFetchTimerEvent : public Event {
 public:
   Id id;
