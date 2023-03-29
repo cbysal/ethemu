@@ -12,18 +12,24 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
                       const std::vector<std::unique_ptr<Node>> &nodes) const {
   const std::unique_ptr<Node> &node = nodes[to];
   Hash hash = hashTx(tx);
+  if (from != to) {
+    node->peerMap[from]->markTransaction(hash);
+    if (node->txPool.contains(hash))
+      return;
+  }
   node->txPool.addTx(tx);
   std::vector<Peer *> peersWithoutTxs;
   for (auto &[_, peer] : node->peerMap)
     if (!peer->knownTransaction(hash))
       peersWithoutTxs.push_back(peer);
-  for (int i = 0; i < std::sqrt(peersWithoutTxs.size()); i++) {
+  int sendTxNum = sqrt(peersWithoutTxs.size());
+  for (int i = 0; i < sendTxNum; i++) {
     Peer *peer = peersWithoutTxs[i];
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
     queue.push(new TxEvent(timestamp + interval, to, peer->id, tx));
     peer->markTransaction(hash);
   }
-  for (int i = std::sqrt(peersWithoutTxs.size()); i < peersWithoutTxs.size(); i++) {
+  for (int i = sendTxNum; i < peersWithoutTxs.size(); i++) {
     Peer *peer = peersWithoutTxs[i];
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
     queue.push(new TxHashEvent(timestamp + interval, to, peer->id, hash));

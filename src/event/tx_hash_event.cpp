@@ -8,6 +8,10 @@ TxHashEvent::TxHashEvent(uint64_t timestamp, Id from, Id to, uint64_t txHash)
 
 void TxHashEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                           const std::vector<std::unique_ptr<Node>> &nodes) const {
+  const std::unique_ptr<Node> &node = nodes[to];
+  node->peerMap[from]->markTransaction(txHash);
+  if (node->txPool.contains(txHash))
+    return;
   uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
   queue.push(new TxReqEvent(timestamp + interval, to, from, txHash));
 }
