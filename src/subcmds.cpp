@@ -13,9 +13,14 @@ void setId(std::vector<std::unique_ptr<EmuNode>> &nodes) {
 }
 
 void setMiners(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<EmuNode>> &nodes) {
-  srand(time(nullptr));
   int num = options["miners"].as<int>();
+  if (nodes.size() <= num) {
+    for (auto &node : nodes)
+      node->isMiner = true;
+    return;
+  }
   std::unordered_set<int> miners;
+  srand(time(nullptr));
   while (miners.size() < num)
     miners.insert(std::rand() % nodes.size());
   for (int i = 0; i < nodes.size(); i++)
@@ -25,6 +30,13 @@ void setMiners(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<
 void setPeers(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<EmuNode>> &nodes) {
   int minPeer = options["peer.min"].as<int>();
   int maxPeer = options["peer.max"].as<int>();
+  if (nodes.size() <= minPeer) {
+    for (int i = 0; i < nodes.size(); i++)
+      for (int j = 0; j < nodes.size(); j++)
+        if (i != j)
+          nodes[i]->peers.push_back(j);
+    return;
+  }
   std::vector<std::unordered_set<int>> peers(nodes.size());
   bool toContinue;
   do {
