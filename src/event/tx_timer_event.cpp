@@ -12,7 +12,7 @@ void TxTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>, Co
   const std::unique_ptr<Node> &node = nodes[from];
   Id to = node->peerList[rand() % node->peerList.size()];
   Tx tx = newTx(from, to, node->nextNonce());
-  queue.push(new TxEvent(timestamp, from, from, tx));
+  queue.push(new TxEvent(timestamp, from, from, false, tx));
 }
 
 std::string TxTimerEvent::toString() const { return "TxTimerEvent (timestamp: " + std::to_string(timestamp) + ")"; }
