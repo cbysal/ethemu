@@ -87,7 +87,7 @@ void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
     events.pop();
     event->process(events, nodes);
     if (verbosity || typeid(*event) == typeid(BlockTimerEvent))
-      std::cout << event->toString() << std::endl;
+      std::cout << "Events: " << events.size() << " " << event->toString() << std::endl;
     delete event;
   }
   while (!events.empty()) {
