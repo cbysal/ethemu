@@ -21,11 +21,17 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
   int sendTxNum = sqrt(peersWithoutTxs.size());
   for (int i = 0; i < sendTxNum; i++) {
     Peer *peer = peersWithoutTxs[i];
+    const std::unique_ptr<Node> &peerNode = nodes[i];
+    if (peerNode->txPool.contains(hash))
+      continue;
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
     queue.push(new TxEvent(timestamp + interval, to, peer->id, false, tx));
   }
   for (int i = sendTxNum; i < peersWithoutTxs.size(); i++) {
     Peer *peer = peersWithoutTxs[i];
+    const std::unique_ptr<Node> &peerNode = nodes[i];
+    if (peerNode->txPool.contains(hash))
+      continue;
     uint64_t interval = (global.minDelay + rand() % (global.maxDelay - global.minDelay)) * 3;
     queue.push(new TxEvent(timestamp + interval, to, peer->id, true, hash));
   }
