@@ -16,8 +16,8 @@ using Option = cxxopts::Option;
 Options options("Ethemu");
 
 Option datadirOpt("datadir", "Data directory for the databases and keystore", cxxopts::value<std::string>());
-Option nodesOpt("nodes", "Number of emulated nodes", cxxopts::value<int>()->default_value("30"));
-Option minersOption("miners", "Number of emulated miners", cxxopts::value<int>()->default_value("5"));
+Option nodesOpt("nodes", "Number of emulated nodes", cxxopts::value<int>()->default_value("100"));
+Option minersOption("miners", "Number of emulated miners", cxxopts::value<int>()->default_value("20"));
 Option peerMinOpt("peer.min", "Restrict the minimum peer num for each node",
                   cxxopts::value<int>()->default_value("20"));
 Option peerMaxOpt("peer.max", "Restrict the maximum peer num for each node",
