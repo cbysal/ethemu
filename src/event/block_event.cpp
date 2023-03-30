@@ -14,8 +14,10 @@ void BlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, Comp
     std::cout << "New Block (Number: " << block->number() << ", Hash: " << hashHex(block->hash())
               << ", Coinbase: " << idToString(block->coinbase()) << ", Txs: " << block->txs.size() << ")" << std::endl;
   const std::unique_ptr<Node> &node = nodes[to];
-  node->insertBlock(block);
   Hash hash = block->hash();
+  if (node->blocksByHash.count(hash))
+    return;
+  node->insertBlock(block);
   std::vector<Peer *> peersWithoutBlock;
   for (auto &[_, peer] : node->peerMap)
     if (!peer->knownBlock(hash))
