@@ -25,7 +25,11 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
     if (peerNode->txPool.contains(hash))
       continue;
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
-    queue.push(new TxEvent(timestamp + interval, to, peer->id, false, tx));
+    uint64_t comingTimestamp = timestamp + interval;
+    if (peerNode->minTxTimestamp.count(hash) && peerNode->minTxTimestamp[hash] <= comingTimestamp)
+      continue;
+    queue.push(new TxEvent(comingTimestamp, to, peer->id, false, hash));
+    peerNode->minTxTimestamp[hash] = comingTimestamp;
   }
   for (int i = sendTxNum; i < peersWithoutTxs.size(); i++) {
     Peer *peer = peersWithoutTxs[i];
@@ -33,7 +37,11 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
     if (peerNode->txPool.contains(hash))
       continue;
     uint64_t interval = (global.minDelay + rand() % (global.maxDelay - global.minDelay)) * 3;
-    queue.push(new TxEvent(timestamp + interval, to, peer->id, true, hash));
+    uint64_t comingTimestamp = timestamp + interval;
+    if (peerNode->minTxTimestamp.count(hash) && peerNode->minTxTimestamp[hash] <= comingTimestamp)
+      continue;
+    queue.push(new TxEvent(comingTimestamp, to, peer->id, true, hash));
+    peerNode->minTxTimestamp[hash] = comingTimestamp;
   }
 }
 

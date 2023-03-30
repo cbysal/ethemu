@@ -27,6 +27,8 @@ struct Node {
   std::unordered_map<Hash, std::shared_ptr<Header>> fetchedHeaders;
   std::unordered_map<Hash, std::vector<Id>> fetchingBodies;
 
+  std::unordered_map<uint32_t, uint64_t> minTxTimestamp;
+
   Node(Id id) {
     this->id = id;
     this->nonce = 0;
