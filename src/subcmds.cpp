@@ -81,8 +81,8 @@ void gen(const cxxopts::ParseResult &options) {
   global.period = options["block.time"].as<int>();
   global.minDelay = options["delay.min"].as<int>();
   global.maxDelay = options["delay.max"].as<int>();
-  global.minTxInterval = global.period * 1000 / options["tx.max"].as<int>();
-  global.maxTxInterval = global.period * 1000 / options["tx.min"].as<int>();
+  global.minTxInterval = global.period / options["tx.max"].as<int>();
+  global.maxTxInterval = global.period / options["tx.min"].as<int>();
   for (auto &node : nodes)
     global.nodes[node->id] = std::move(node);
   storeConfig(dataDir);

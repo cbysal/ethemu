@@ -21,7 +21,7 @@ private:
   std::unordered_map<Id, std::priority_queue<Tx, std::vector<Tx>, std::greater<>>> pending;
   std::unordered_map<Id, std::priority_queue<Tx, std::vector<Tx>, std::greater<>>> queued;
 
-  int minTx = 0;
+  uint32_t minTx = 0;
   std::unordered_set<uint32_t> allTxs;
 
   std::unordered_map<Id, uint16_t> noncer;
