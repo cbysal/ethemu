@@ -47,7 +47,8 @@ public:
       reorg();
     if (queuedSize >= globalQueue || queued[from].size() >= accountQueue)
       return;
-    allTxs.insert(tx >> 32);
+    if ((tx >> 32) >= minTx)
+      allTxs.insert(tx >> 32);
     while (allTxs.count(minTx))
       allTxs.erase(minTx++);
     queued[from].push(tx);
@@ -60,7 +61,8 @@ public:
       Id id = tx >> 16;
       uint16_t nonce = tx;
       maxNonces[id] = std::max(maxNonces[id], nonce);
-      allTxs.insert(tx >> 32);
+      if ((tx >> 32) >= minTx)
+        allTxs.insert(tx >> 32);
     }
     while (allTxs.count(minTx))
       allTxs.erase(minTx++);
