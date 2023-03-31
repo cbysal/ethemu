@@ -52,6 +52,8 @@ struct Node {
     blocksByHash[block->hash()] = block;
     current = block->number();
     txPool.notifyBlockTxs(block->txs);
+    for (Tx tx : block->txs)
+      minTxTimestamp.erase(tx >> 32);
   }
   std::vector<Tx> getTxs() { return txPool.pollTxs(); }
 };

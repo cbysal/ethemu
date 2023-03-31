@@ -14,6 +14,7 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
   if (node->txPool.contains(txId))
     return;
   node->txPool.addTx(tx);
+  node->minTxTimestamp.erase(txId);
   std::vector<Peer *> peersWithoutTxs;
   for (auto &[_, peer] : node->peerMap)
     if (peer->id != from)
