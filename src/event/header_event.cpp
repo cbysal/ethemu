@@ -12,7 +12,8 @@ void HeaderEvent::process(std::priority_queue<Event *, std::vector<Event *>, Com
   uint64_t blockHash = header->hash();
   node->fetchedHeaders[blockHash] = header;
   node->fetchingBodies[blockHash].push_back(from);
-  node->nextFetchBodyTime = timestamp + bodyFetchInterval;
+  if (node->fetchedHeaders.size() == 1)
+    node->nextFetchBodyTime = timestamp + bodyFetchInterval;
 }
 
 std::string HeaderEvent::toString() const {

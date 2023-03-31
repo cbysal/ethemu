@@ -10,7 +10,8 @@ void BlockHashEvent::process(std::priority_queue<Event *, std::vector<Event *>, 
                              const std::vector<std::unique_ptr<Node>> &nodes) const {
   const std::unique_ptr<Node> &node = nodes[to];
   node->fetchingHeaders[blockHash].push_back(from);
-  node->nextFetchHeaderTime = timestamp + headerFetchInterval;
+  if (node->fetchingHeaders.size() == 1)
+    node->nextFetchHeaderTime = timestamp + headerFetchInterval;
 }
 
 std::string BlockHashEvent::toString() const {
