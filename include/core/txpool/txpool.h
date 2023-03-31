@@ -20,7 +20,8 @@ private:
   std::unordered_map<Id, std::unordered_map<uint16_t, Tx>> pending;
   std::unordered_map<Id, std::unordered_map<uint16_t, Tx>> queued;
 
-  std::unordered_set<Hash> allTxs;
+  int minTx = 0;
+  std::unordered_set<uint32_t> allTxs;
 
   std::unordered_map<Id, uint16_t> noncer;
 
@@ -48,7 +49,9 @@ public:
     uint16_t nonce = tx & 0xffff;
     if (queued[from].count(nonce))
       return;
-    allTxs.insert(tx & 0xffffffff);
+    allTxs.insert(tx >> 32);
+    while (allTxs.count(minTx))
+      allTxs.erase(minTx++);
     queued[from][nonce] = tx;
     queuedSize++;
   }
@@ -59,8 +62,10 @@ public:
       Id id = tx >> 16;
       uint16_t nonce = tx;
       maxNonces[id] = std::max(maxNonces[id], nonce);
-      allTxs.insert(tx & 0xffffffff);
+      allTxs.insert(tx >> 32);
     }
+    while (allTxs.count(minTx))
+      allTxs.erase(minTx++);
     for (const auto &[id, newNonce] : maxNonces) {
       auto &pendingTxs = pending[id];
       auto &queuedTxs = queued[id];
@@ -93,7 +98,11 @@ public:
     return 0;
   }
 
-  bool contains(Hash hash) { return allTxs.count(hash); }
+  bool contains(uint32_t txId) {
+    if (txId < minTx)
+      return true;
+    return allTxs.count(txId);
+  }
 
   std::vector<Tx> pollTxs() {
     reorg();

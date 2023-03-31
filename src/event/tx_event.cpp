@@ -9,9 +9,9 @@ TxEvent::TxEvent(uint64_t timestamp, uint16_t from, uint16_t to, bool byHash, Tx
 
 void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                       const std::vector<std::unique_ptr<Node>> &nodes) const {
+  uint32_t txId = tx >> 32;
   const std::unique_ptr<Node> &node = nodes[to];
-  Hash hash = hashTx(tx);
-  if (node->txPool.contains(hash))
+  if (node->txPool.contains(txId))
     return;
   node->txPool.addTx(tx);
   std::vector<Peer *> peersWithoutTxs;
@@ -22,26 +22,26 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
   for (int i = 0; i < sendTxNum; i++) {
     Peer *peer = peersWithoutTxs[i];
     const std::unique_ptr<Node> &peerNode = nodes[i];
-    if (peerNode->txPool.contains(hash))
+    if (peerNode->txPool.contains(txId))
       continue;
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
     uint64_t comingTimestamp = timestamp + interval;
-    if (peerNode->minTxTimestamp.count(hash) && peerNode->minTxTimestamp[hash] <= comingTimestamp)
+    if (peerNode->minTxTimestamp.count(txId) && peerNode->minTxTimestamp[txId] <= comingTimestamp)
       continue;
-    queue.push(new TxEvent(comingTimestamp, to, peer->id, false, hash));
-    peerNode->minTxTimestamp[hash] = comingTimestamp;
+    queue.push(new TxEvent(comingTimestamp, to, peer->id, false, tx));
+    peerNode->minTxTimestamp[txId] = comingTimestamp;
   }
   for (int i = sendTxNum; i < peersWithoutTxs.size(); i++) {
     Peer *peer = peersWithoutTxs[i];
     const std::unique_ptr<Node> &peerNode = nodes[i];
-    if (peerNode->txPool.contains(hash))
+    if (peerNode->txPool.contains(txId))
       continue;
     uint64_t interval = (global.minDelay + rand() % (global.maxDelay - global.minDelay)) * 3;
     uint64_t comingTimestamp = timestamp + interval;
-    if (peerNode->minTxTimestamp.count(hash) && peerNode->minTxTimestamp[hash] <= comingTimestamp)
+    if (peerNode->minTxTimestamp.count(txId) && peerNode->minTxTimestamp[txId] <= comingTimestamp)
       continue;
-    queue.push(new TxEvent(comingTimestamp, to, peer->id, true, hash));
-    peerNode->minTxTimestamp[hash] = comingTimestamp;
+    queue.push(new TxEvent(comingTimestamp, to, peer->id, true, tx));
+    peerNode->minTxTimestamp[txId] = comingTimestamp;
   }
 }
 
