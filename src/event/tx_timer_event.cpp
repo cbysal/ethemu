@@ -10,8 +10,7 @@ void TxTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>, Co
   queue.push(new TxTimerEvent(timestamp + interval));
   Id from = rand() % nodes.size();
   const std::unique_ptr<Node> &node = nodes[from];
-  Id to = node->peerList[rand() % node->peerList.size()];
-  Tx tx = newTx(from, to, node->nextNonce());
+  Tx tx = newTx(from, node->nextNonce());
   queue.push(new TxEvent(timestamp, from, from, false, tx));
 }
 
