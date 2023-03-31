@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <queue>
 #include <unordered_map>
 #include <vector>
 
@@ -17,8 +18,8 @@ private:
   int pendingSize = 0;
   int queuedSize = 0;
 
-  std::unordered_map<Id, std::unordered_map<uint16_t, Tx>> pending;
-  std::unordered_map<Id, std::unordered_map<uint16_t, Tx>> queued;
+  std::unordered_map<Id, std::priority_queue<Tx, std::vector<Tx>, std::greater<>>> pending;
+  std::unordered_map<Id, std::priority_queue<Tx, std::vector<Tx>, std::greater<>>> queued;
 
   int minTx = 0;
   std::unordered_set<uint32_t> allTxs;
@@ -27,12 +28,12 @@ private:
 
   void reorg() {
     for (auto &[id, queuedTxs] : queued) {
-      while (queuedTxs.count(noncer[id])) {
+      while (!queuedTxs.empty() && (queuedTxs.top() & 0xffff) == noncer[id]) {
         if (pendingSize >= globalSlots && pending[id].size() >= accountSlots)
           break;
-        pending[id].emplace(noncer[id], queuedTxs[noncer[id]]);
+        pending[id].push(queuedTxs.top());
         pendingSize++;
-        queued[id].erase(noncer[id]);
+        queuedTxs.pop();
         queuedSize--;
         noncer[id]++;
       }
@@ -46,13 +47,10 @@ public:
       reorg();
     if (queuedSize >= globalQueue || queued[from].size() >= accountQueue)
       return;
-    uint16_t nonce = tx & 0xffff;
-    if (queued[from].count(nonce))
-      return;
     allTxs.insert(tx >> 32);
     while (allTxs.count(minTx))
       allTxs.erase(minTx++);
-    queued[from][nonce] = tx;
+    queued[from].push(tx);
     queuedSize++;
   }
 
@@ -69,33 +67,16 @@ public:
     for (const auto &[id, newNonce] : maxNonces) {
       auto &pendingTxs = pending[id];
       auto &queuedTxs = queued[id];
-      uint16_t oldNonce = noncer[id];
-      for (int i = oldNonce - 1; i >= 0; i--) {
-        if (pendingTxs.count(i)) {
-          pendingTxs.erase(i);
-          pendingSize--;
-          continue;
-        }
-        break;
+      while (!pendingTxs.empty() && (pendingTxs.top() & 0xffff) <= newNonce) {
+        pendingTxs.pop();
+        pendingSize--;
       }
-      for (int i = oldNonce; i <= newNonce; i++) {
-        if (queuedTxs.count(i)) {
-          queuedTxs.erase(i);
-          queuedSize--;
-        }
+      while (!queuedTxs.empty() && (queuedTxs.top() & 0xffff) <= newNonce) {
+        queuedTxs.pop();
+        queuedSize--;
       }
       noncer[id] = newNonce + 1;
     }
-  }
-
-  Tx get(Hash hash) {
-    Id from = hash >> 16;
-    uint16_t nonce = hash;
-    if (pending.count(from) && pending[from].count(nonce))
-      return pending[from][nonce];
-    if (queued.count(from) && queued[from].count(nonce))
-      return queued[from][nonce];
-    return 0;
   }
 
   bool contains(uint32_t txId) {
@@ -111,9 +92,9 @@ public:
       for (auto &[_, pendingTxs] : pending) {
         if (pendingTxs.empty())
           continue;
-        auto [nonce, tx] = *pendingTxs.begin();
+        Tx tx = pendingTxs.top();
+        pendingTxs.pop();
         txs.push_back(tx);
-        pendingTxs.erase(nonce);
         pendingSize--;
       }
     }
