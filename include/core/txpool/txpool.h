@@ -42,7 +42,7 @@ private:
 
 public:
   void addTx(Tx tx) {
-    Id from = (tx >> 16) & 0xffff;
+    Id from = tx >> 16;
     if (queuedSize >= globalQueue || queued[from].size() >= accountQueue)
       reorg();
     if (queuedSize >= globalQueue || queued[from].size() >= accountQueue)
