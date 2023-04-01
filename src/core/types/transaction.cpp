@@ -1,7 +1,22 @@
+#include <cstdlib>
+#include <utility>
+#include <vector>
+
 #include "core/types/transaction.h"
 
-uint64_t txId = 0;
+std::vector<std::pair<uint64_t, Tx>> txs;
 
-Tx newTx(Id from, uint16_t nonce) { return ((txId++) << 32) | (uint64_t(from) << 16) | nonce; }
+void preGenTxs(uint64_t simTime, uint64_t minTxInterval, uint64_t maxTxInterval, int nodeNum) {
+  std::vector<int> nonces;
+  nonces.resize(nodeNum, 0);
+  uint64_t txId = 0;
+  uint64_t curTime = 0;
+  do {
+    int node = rand() % nodeNum;
+    txs.emplace_back(curTime, ((txId++) << 32) | (uint64_t(node) << 16) | nonces[node]++);
+    uint64_t interval = minTxInterval + rand() % (maxTxInterval - minTxInterval);
+    curTime += interval;
+  } while (curTime < simTime);
+}
 
 Hash hashTx(Tx tx) { return tx & 0xffffffff; }

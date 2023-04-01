@@ -1,13 +1,14 @@
 #include <csignal>
 #include <iostream>
 
+#include "core/types/transaction.h"
 #include "cxxopts.hpp"
 #include "emu/config.h"
 #include "ethemu.h"
 #include "event/block_timer_event.h"
 #include "event/body_fetch_timer_event.h"
 #include "event/header_fetch_timer_event.h"
-#include "event/tx_timer_event.h"
+#include "event/tx_event.h"
 #include "node/node.h"
 
 using Options = cxxopts::Options;
@@ -73,22 +74,27 @@ void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
     node->blocksByNumber[genesisBlock->number()] = genesisBlock;
     node->blocksByHash[genesisBlock->hash()] = genesisBlock;
   }
+  preGenTxs(simTime, global.minTxInterval, global.maxTxInterval, nodes.size());
   std::priority_queue<Event *, std::vector<Event *>, CompareEvent> events;
-  events.push(new TxTimerEvent(0));
   events.push(new BlockTimerEvent(0));
   for (auto &node : nodes) {
     events.push(new HeaderFetchTimerEvent(0, node->id));
     events.push(new BodyFetchTimerEvent(0, node->id));
   }
-  while (!events.empty()) {
-    Event *event = events.top();
-    if (event->timestamp > simTime)
-      break;
-    events.pop();
-    event->process(events, nodes);
-    if (verbosity || typeid(*event) == typeid(BlockTimerEvent))
-      std::cout << "Events: " << events.size() << " " << event->toString() << std::endl;
-    delete event;
+  for (auto &[curTime, tx] : txs) {
+    while (!events.empty() && events.top()->timestamp < curTime) {
+      Event *event = events.top();
+      if (event->timestamp > simTime)
+        break;
+      events.pop();
+      event->process(events, nodes);
+      if (verbosity || typeid(*event) == typeid(BlockTimerEvent))
+        std::cout << "Events: " << events.size() << " " << event->toString() << std::endl;
+      delete event;
+    }
+    Id from = tx >> 16;
+    Event *event = new TxEvent(curTime, from, from, false, tx);
+    events.push(event);
   }
   while (!events.empty()) {
     Event *event = events.top();
