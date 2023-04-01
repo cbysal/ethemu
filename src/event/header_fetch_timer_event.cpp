@@ -8,8 +8,8 @@ const uint64_t headerFetchInterval = 500;
 HeaderFetchTimerEvent::HeaderFetchTimerEvent(uint64_t timestamp, Id id) : Event(timestamp), id(id) {}
 
 void HeaderFetchTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
-                                    const std::vector<std::unique_ptr<Node>> &nodes) const {
-  const std::unique_ptr<Node> &node = nodes[id];
+                                    const std::vector<Node *> &nodes) const {
+  Node *node = nodes[id];
   if (timestamp < node->nextFetchHeaderTime) {
     queue.push(new HeaderFetchTimerEvent(node->nextFetchHeaderTime, id));
     return;

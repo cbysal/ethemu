@@ -60,11 +60,11 @@ int main(int argc, char *argv[]) {
 
 void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
   loadConfig(dataDir);
-  std::vector<std::unique_ptr<Node>> nodes;
+  std::vector<Node *> nodes;
   for (int i = 0; i < global.nodes.size(); i++) {
     const std::unique_ptr<EmuNode> &emuNode = global.nodes[i];
-    std::unique_ptr<Node> node = std::make_unique<Node>(emuNode->id);
-    nodes.push_back(std::move(node));
+    Node *node = new Node(emuNode->id);
+    nodes.push_back(node);
   }
   for (auto &node : nodes)
     for (auto peer : global.nodes[node->id]->peers)
@@ -103,6 +103,8 @@ void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
     events.pop();
     delete event;
   }
+  for (Node *node : nodes)
+    delete node;
   std::cerr << "Mem: ";
   pid_t pid = getpid();
   system(std::string("cat /proc/" + std::to_string(pid) + "/status | grep VmHWM | awk '{print $2 $3}' > /dev/fd/2")

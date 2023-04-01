@@ -8,9 +8,9 @@ TxEvent::TxEvent(uint64_t timestamp, uint16_t from, uint16_t to, bool byHash, Tx
     : Event(timestamp), from(from), to(to), byHash(byHash), tx(tx) {}
 
 void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
-                      const std::vector<std::unique_ptr<Node>> &nodes) const {
+                      const std::vector<Node *> &nodes) const {
   uint32_t txId = tx >> 32;
-  const std::unique_ptr<Node> &node = nodes[to];
+  Node *node = nodes[to];
   if (node->txPool->contains(txId))
     return;
   node->txPool->addTx(tx);
@@ -20,7 +20,7 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
   for (auto &[_, peer] : node->peerMap) {
     if (from == peer->id)
       continue;
-    const std::unique_ptr<Node> &peerNode = nodes[peer->id];
+    Node *peerNode = nodes[peer->id];
     if (peerNode->txPool->contains(txId))
       continue;
     bool byHash = (sentTxNum++) >= sendTxNum;

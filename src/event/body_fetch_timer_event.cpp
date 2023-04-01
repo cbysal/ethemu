@@ -8,8 +8,8 @@ const uint64_t bodyFetchInterval = 100;
 BodyFetchTimerEvent::BodyFetchTimerEvent(uint64_t timestamp, Id id) : Event(timestamp), id(id) {}
 
 void BodyFetchTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
-                                  const std::vector<std::unique_ptr<Node>> &nodes) const {
-  const std::unique_ptr<Node> &node = nodes[id];
+                                  const std::vector<Node *> &nodes) const {
+  Node *node = nodes[id];
   if (timestamp < node->nextFetchBodyTime) {
     queue.push(new BodyFetchTimerEvent(node->nextFetchBodyTime, id));
     return;

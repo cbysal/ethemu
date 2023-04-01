@@ -44,7 +44,7 @@ struct Node {
   }
 
   void setTxNum(int txNum) { txPool = new TxPool(txNum); }
-  void addPeer(const std::unique_ptr<Node> &node) {
+  void addPeer(Node *node) {
     peerList.push_back(node->id);
     peerMap[node->id] = new Peer(node->id);
   }

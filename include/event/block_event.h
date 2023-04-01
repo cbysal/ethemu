@@ -11,6 +11,6 @@ public:
   BlockEvent(uint64_t timestamp, Id from, Id to, const std::shared_ptr<Block> &block);
 
   void process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
-               const std::vector<std::unique_ptr<Node>> &nodes) const;
+               const std::vector<Node *> &nodes) const;
   std::string toString() const;
 };

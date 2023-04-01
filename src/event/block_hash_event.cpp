@@ -7,8 +7,8 @@ BlockHashEvent::BlockHashEvent(uint64_t timestamp, Id from, Id to, Hash blockHas
     : Event(timestamp), from(from), to(to), blockHash(blockHash) {}
 
 void BlockHashEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
-                             const std::vector<std::unique_ptr<Node>> &nodes) const {
-  const std::unique_ptr<Node> &node = nodes[to];
+                             const std::vector<Node *> &nodes) const {
+  Node *node = nodes[to];
   node->fetchingHeaders[blockHash].push_back(from);
   if (node->fetchingHeaders.size() == 1)
     node->nextFetchHeaderTime = timestamp + headerFetchInterval;

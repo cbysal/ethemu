@@ -9,11 +9,11 @@ BlockEvent::BlockEvent(uint64_t timestamp, Id from, Id to, const std::shared_ptr
     : Event(timestamp), from(from), to(to), block(block) {}
 
 void BlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
-                         const std::vector<std::unique_ptr<Node>> &nodes) const {
+                         const std::vector<Node *> &nodes) const {
   if (from == to)
     std::cout << "New Block (Number: " << block->number() << ", Hash: " << hashHex(block->hash())
               << ", Coinbase: " << idToString(block->coinbase()) << ", Txs: " << block->txs.size() << ")" << std::endl;
-  const std::unique_ptr<Node> &node = nodes[to];
+  Node *node = nodes[to];
   Hash hash = block->hash();
   if (node->blocksByHash.count(hash))
     return;
