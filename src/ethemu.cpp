@@ -75,6 +75,8 @@ void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
     node->blocksByHash[genesisBlock->hash()] = genesisBlock;
   }
   preGenTxs(simTime, global.minTxInterval, global.maxTxInterval, nodes.size());
+  for (auto &node : nodes)
+    node->setTxNum(txs.size());
   std::priority_queue<Event *, std::vector<Event *>, CompareEvent> events;
   events.push(new BlockTimerEvent(0));
   for (auto &node : nodes) {

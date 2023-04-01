@@ -14,7 +14,7 @@ struct Node {
   Id id;
   uint16_t nonce;
   uint64_t current;
-  TxPool txPool;
+  TxPool *txPool;
   std::unordered_map<Hash, std::shared_ptr<Block>> blocksByNumber;
   std::unordered_map<Hash, std::shared_ptr<Block>> blocksByHash;
   std::vector<Id> peerList;
@@ -40,9 +40,10 @@ struct Node {
   ~Node() {
     for (auto &[_, peer] : peerMap)
       delete peer;
+    delete txPool;
   }
 
-  uint16_t nextNonce() { return nonce++; }
+  void setTxNum(int txNum) { txPool = new TxPool(txNum); }
   void addPeer(const std::unique_ptr<Node> &node) {
     peerList.push_back(node->id);
     peerMap[node->id] = new Peer(node->id);
@@ -51,9 +52,9 @@ struct Node {
     blocksByNumber[block->number()] = block;
     blocksByHash[block->hash()] = block;
     current = block->number();
-    txPool.notifyBlockTxs(block->txs);
+    txPool->notifyBlockTxs(block->txs);
     for (Tx tx : block->txs)
       minTxTimestamp.erase(tx >> 32);
   }
-  std::vector<Tx> getTxs() { return txPool.pollTxs(); }
+  std::vector<Tx> getTxs() { return txPool->pollTxs(); }
 };

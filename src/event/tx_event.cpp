@@ -11,9 +11,9 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
                       const std::vector<std::unique_ptr<Node>> &nodes) const {
   uint32_t txId = tx >> 32;
   const std::unique_ptr<Node> &node = nodes[to];
-  if (node->txPool.contains(txId))
+  if (node->txPool->contains(txId))
     return;
-  node->txPool.addTx(tx);
+  node->txPool->addTx(tx);
   node->minTxTimestamp.erase(txId);
   int sendTxNum = sqrt(node->peerList.size() - (from != to));
   int sentTxNum = 0;
@@ -21,7 +21,7 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
     if (from == peer->id)
       continue;
     const std::unique_ptr<Node> &peerNode = nodes[peer->id];
-    if (peerNode->txPool.contains(txId))
+    if (peerNode->txPool->contains(txId))
       continue;
     bool byHash = (sentTxNum++) >= sendTxNum;
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);

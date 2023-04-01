@@ -1,9 +1,12 @@
 #pragma once
 
+#include <bitset>
 #include <cstdint>
 #include <queue>
 #include <unordered_map>
 #include <vector>
+
+#include "bitset.h"
 
 using Id = uint16_t;
 using Tx = uint64_t;
@@ -21,8 +24,7 @@ private:
   std::unordered_map<Id, std::priority_queue<Tx, std::vector<Tx>, std::greater<>>> pending;
   std::unordered_map<Id, std::priority_queue<Tx, std::vector<Tx>, std::greater<>>> queued;
 
-  uint32_t minTx = 0;
-  std::unordered_set<uint32_t> allTxs;
+  BitSet allTxs;
 
   std::unordered_map<Id, uint16_t> noncer;
 
@@ -41,16 +43,15 @@ private:
   }
 
 public:
+  TxPool(int txNum) { allTxs.resize(txNum); }
+
   void addTx(Tx tx) {
     Id from = tx >> 16;
     if (queuedSize >= globalQueue || queued[from].size() >= accountQueue)
       reorg();
     if (queuedSize >= globalQueue || queued[from].size() >= accountQueue)
       return;
-    if ((tx >> 32) >= minTx)
-      allTxs.insert(tx >> 32);
-    while (allTxs.count(minTx))
-      allTxs.erase(minTx++);
+    allTxs.set(tx >> 32);
     queued[from].push(tx);
     queuedSize++;
   }
@@ -61,11 +62,8 @@ public:
       Id id = tx >> 16;
       uint16_t nonce = tx;
       maxNonces[id] = std::max(maxNonces[id], nonce);
-      if ((tx >> 32) >= minTx)
-        allTxs.insert(tx >> 32);
+      allTxs.set(tx >> 32);
     }
-    while (allTxs.count(minTx))
-      allTxs.erase(minTx++);
     for (const auto &[id, newNonce] : maxNonces) {
       auto &pendingTxs = pending[id];
       auto &queuedTxs = queued[id];
@@ -81,11 +79,7 @@ public:
     }
   }
 
-  bool contains(uint32_t txId) {
-    if (txId < minTx)
-      return true;
-    return allTxs.count(txId);
-  }
+  bool contains(uint32_t txId) { return allTxs[txId]; }
 
   std::vector<Tx> pollTxs() {
     reorg();
