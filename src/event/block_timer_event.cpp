@@ -10,7 +10,7 @@ void BlockTimerEvent::process(std::priority_queue<Event *, std::vector<Event *>,
   std::shared_ptr<Block> parentBlock = node->blocksByNumber[node->current];
   std::vector<Tx> txs = node->getTxs();
   std::shared_ptr<Block> block = std::make_shared<Block>(parentBlock->hash(), node->id, parentBlock->number() + 1, txs);
-  queue.push(new BlockEvent(timestamp, node->id, node->id, block));
+  queue.push(new BlockEvent(timestamp, node->id, node->id, false, block));
   queue.push(new BlockTimerEvent(timestamp + global.period));
 }
 

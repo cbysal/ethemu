@@ -6,8 +6,6 @@
 #include "emu/config.h"
 #include "ethemu.h"
 #include "event/block_timer_event.h"
-#include "event/body_fetch_timer_event.h"
-#include "event/header_fetch_timer_event.h"
 #include "event/tx_event.h"
 #include "node/node.h"
 
@@ -79,10 +77,6 @@ void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
     node->setTxNum(txs.size());
   std::priority_queue<Event *, std::vector<Event *>, CompareEvent> events;
   events.push(new BlockTimerEvent(0));
-  for (auto &node : nodes) {
-    events.push(new HeaderFetchTimerEvent(0, node->id));
-    events.push(new BodyFetchTimerEvent(0, node->id));
-  }
   for (auto &[curTime, tx] : txs) {
     while (!events.empty() && events.top()->timestamp < curTime) {
       Event *event = events.top();

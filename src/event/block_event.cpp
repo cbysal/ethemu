@@ -3,10 +3,9 @@
 #include "common/math.h"
 #include "emu/config.h"
 #include "event/block_event.h"
-#include "event/block_hash_event.h"
 
-BlockEvent::BlockEvent(uint64_t timestamp, Id from, Id to, const std::shared_ptr<Block> &block)
-    : Event(timestamp), from(from), to(to), block(block) {}
+BlockEvent::BlockEvent(uint64_t timestamp, Id from, Id to, bool byHash, const std::shared_ptr<Block> &block)
+    : Event(timestamp), from(from), to(to), byHash(byHash), block(block) {}
 
 void BlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                          const std::vector<Node *> &nodes) const {
@@ -25,18 +24,19 @@ void BlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, Comp
   for (int i = 0; i < std::sqrt(peersWithoutBlock.size()); i++) {
     Peer *peer = peersWithoutBlock[i];
     uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
-    queue.push(new BlockEvent(timestamp + interval, to, peer->id, block));
+    queue.push(new BlockEvent(timestamp + interval, to, peer->id, false, block));
     peer->markBlock(hash);
   }
   for (int i = std::sqrt(peersWithoutBlock.size()); i < peersWithoutBlock.size(); i++) {
     Peer *peer = peersWithoutBlock[i];
-    uint64_t interval = global.minDelay + rand() % (global.maxDelay - global.minDelay);
-    queue.push(new BlockHashEvent(timestamp + interval, to, peer->id, hash));
+    uint64_t interval = (global.minDelay + rand() % (global.maxDelay - global.minDelay)) * 5 + rand() % 500;
+    queue.push(new BlockEvent(timestamp + interval, to, peer->id, true, block));
     peer->markBlock(hash);
   }
 }
 
 std::string BlockEvent::toString() const {
   return "BlockEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + ", block: " + hashHex(block->hash()) + ")";
+         ", to: " + idToString(to) + (byHash ? ", byHash: true, block: " : ", byHash: false, block: ") +
+         hashHex(block->hash()) + ")";
 }

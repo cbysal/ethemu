@@ -12,7 +12,6 @@
 
 struct Node {
   Id id;
-  uint16_t nonce;
   uint64_t current;
   TxPool *txPool;
   std::unordered_map<Hash, std::shared_ptr<Block>> blocksByNumber;
@@ -20,21 +19,11 @@ struct Node {
   std::vector<Id> peerList;
   std::unordered_map<Id, Peer *> peerMap;
 
-  uint64_t nextFetchHeaderTime;
-  uint64_t nextFetchBodyTime;
-
-  std::unordered_map<Hash, std::vector<Id>> fetchingHeaders;
-  std::unordered_map<Hash, std::shared_ptr<Header>> fetchedHeaders;
-  std::unordered_map<Hash, std::vector<Id>> fetchingBodies;
-
   std::unordered_map<uint32_t, uint64_t> minTxTimestamp;
 
   Node(Id id) {
     this->id = id;
-    this->nonce = 0;
     this->current = 0;
-    this->nextFetchHeaderTime = 0;
-    this->nextFetchBodyTime = 0;
   }
 
   ~Node() {
