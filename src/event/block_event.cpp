@@ -9,9 +9,12 @@ BlockEvent::BlockEvent(uint64_t timestamp, Id from, Id to, bool byHash, const st
 
 void BlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                          const std::vector<Node *> &nodes) const {
-  if (from == to)
+  if (from == to) {
+    Node *node = nodes[block->coinbase()];
     std::cout << "New Block (Number: " << block->number() << ", Hash: " << hashHex(block->hash())
               << ", Coinbase: " << idToString(block->coinbase()) << ", Txs: " << block->txs.size() << ")" << std::endl;
+    std::cout << "Txs in " << idToString(block->coinbase()) << ": " << node->txPool->size() << std::endl;
+  }
   Node *node = nodes[to];
   Hash hash = block->hash();
   if (node->blocksByHash.count(hash))

@@ -45,15 +45,16 @@ private:
 public:
   TxPool(int txNum) { allTxs.resize(txNum); }
 
-  void addTx(Tx tx) {
+  bool addTx(Tx tx) {
     Id from = tx >> 16;
     if (queuedSize >= globalQueue || queued[from].size() >= accountQueue)
       reorg();
     if (queuedSize >= globalQueue || queued[from].size() >= accountQueue)
-      return;
+      return false;
     allTxs.set(tx >> 32);
     queued[from].push(tx);
     queuedSize++;
+    return true;
   }
 
   void notifyBlockTxs(const std::vector<Tx> &txs) {
@@ -75,7 +76,7 @@ public:
         queuedTxs.pop();
         queuedSize--;
       }
-      noncer[id] = newNonce + 1;
+      noncer[id] = std::max<Id>(noncer[id], newNonce + 1);
     }
   }
 
@@ -86,6 +87,8 @@ public:
     std::vector<Tx> txs;
     while (txs.size() < 200 && pendingSize > 0) {
       for (auto &[_, pendingTxs] : pending) {
+        if (txs.size() >= 200)
+          break;
         if (pendingTxs.empty())
           continue;
         Tx tx = pendingTxs.top();
@@ -96,4 +99,6 @@ public:
     }
     return txs;
   }
+
+  int size() const { return pendingSize + queuedSize; }
 };
