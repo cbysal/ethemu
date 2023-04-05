@@ -28,18 +28,21 @@ Option txMinOpt("tx.min", "Restrict the minimum transaction num sent during each
 Option txMaxOpt("tx.max", "Restrict the maximum transaction num sent during each block time",
                 cxxopts::value<int>()->default_value("210"));
 Option blockTimeOpt("block.time", "Interval of consensus for blocks", cxxopts::value<int>()->default_value("15000"));
+Option prefillOpt("prefill", "Fill transaction pool with transactions before emulation",
+                  cxxopts::value<int>()->default_value("0"));
 Option simTimeOpt("sim.time", "Time limit of the simulation", cxxopts::value<int>()->default_value("1000000"));
 Option verbosityOpt("verbosity", "Show all outputs if it is on", cxxopts::value<bool>());
 
-std::vector<Option> opts = {datadirOpt,  nodesOpt, minersOption, peerMinOpt,   peerMaxOpt, delayMinOpt,
-                            delayMaxOpt, txMinOpt, txMaxOpt,     blockTimeOpt, simTimeOpt, verbosityOpt};
+std::vector<Option> opts = {datadirOpt, nodesOpt, minersOption, peerMinOpt, peerMaxOpt, delayMinOpt, delayMaxOpt,
+                            txMinOpt,   txMaxOpt, blockTimeOpt, simTimeOpt, prefillOpt, verbosityOpt};
 
 int main(int argc, char *argv[]) {
   std::for_each(opts.begin(), opts.end(), [](auto opt) { options.add_option("", opt); });
   auto result = options.parse(argc, argv);
   switch (result.unmatched().size()) {
   case 0:
-    ethemu(result["datadir"].as<std::string>(), result["sim.time"].as<int>(), result["verbosity"].as<bool>());
+    ethemu(result["datadir"].as<std::string>(), result["sim.time"].as<int>(), result["prefill"].as<int>(),
+           result["verbosity"].as<bool>());
     break;
   case 1: {
     auto subcmd = result.unmatched()[0];
@@ -56,7 +59,7 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
+void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool verbosity) {
   loadConfig(dataDir);
   std::vector<Node *> nodes;
   for (int i = 0; i < global.nodes.size(); i++) {
@@ -72,7 +75,7 @@ void ethemu(const std::string &dataDir, uint64_t simTime, bool verbosity) {
     node->blocksByNumber[genesisBlock->number()] = genesisBlock;
     node->blocksByHash[genesisBlock->hash()] = genesisBlock;
   }
-  preGenTxs(simTime, global.minTxInterval, global.maxTxInterval, nodes.size());
+  preGenTxs(simTime, global.minTxInterval, global.maxTxInterval, prefill, nodes.size());
   for (auto &node : nodes)
     node->setTxNum(txs.size());
   std::priority_queue<Event *, std::vector<Event *>, CompareEvent> events;

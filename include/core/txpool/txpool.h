@@ -42,18 +42,30 @@ private:
     }
   }
 
+  void reorgSingle(Id id) {
+    auto &queuedTxs = queued[id];
+    while (!queuedTxs.empty() && (queuedTxs.top() & 0xffff) == noncer[id]) {
+      if (pendingSize >= globalSlots && pending[id].size() >= accountSlots)
+        break;
+      pending[id].push(queuedTxs.top());
+      pendingSize++;
+      queuedTxs.pop();
+      queuedSize--;
+      noncer[id]++;
+    }
+  }
+
 public:
   TxPool(int txNum) { allTxs.resize(txNum); }
 
   bool addTx(Tx tx) {
     Id from = tx >> 16;
     if (queuedSize >= globalQueue || queued[from].size() >= accountQueue)
-      reorg();
-    if (queuedSize >= globalQueue || queued[from].size() >= accountQueue)
       return false;
     allTxs.set(tx >> 32);
     queued[from].push(tx);
     queuedSize++;
+    reorgSingle(from);
     return true;
   }
 
@@ -78,12 +90,13 @@ public:
       }
       noncer[id] = std::max<Id>(noncer[id], newNonce + 1);
     }
+    reorg();
   }
 
   bool contains(uint32_t txId) { return allTxs[txId]; }
 
   std::vector<Tx> pollTxs() {
-    reorg();
+    std::unordered_set<Id> usedIds;
     std::vector<Tx> txs;
     while (txs.size() < 200 && pendingSize > 0) {
       for (auto &[_, pendingTxs] : pending) {
@@ -95,7 +108,12 @@ public:
         pendingTxs.pop();
         txs.push_back(tx);
         pendingSize--;
+        Id id = tx >> 16;
+        usedIds.insert(id);
       }
+    }
+    for (Id id : usedIds) {
+      reorgSingle(id);
     }
     return txs;
   }

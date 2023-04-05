@@ -14,8 +14,10 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
   if (node->txPool->contains(txId))
     return;
   bool isAdded = node->txPool->addTx(tx);
-  if (!isAdded)
+  if (!isAdded) {
+    node->resentTxs.emplace(from, to, byHash, tx);
     return;
+  }
   node->minTxTimestamp.erase(txId);
   int sendTxNum = sqrt(node->peerList.size() - (from != to));
   int sentTxNum = 0;

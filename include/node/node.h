@@ -9,6 +9,7 @@
 #include "core/txpool/txpool.h"
 #include "core/types/block.h"
 #include "core/types/transaction.h"
+#include "event/event.h"
 
 struct Node {
   Id id;
@@ -20,6 +21,8 @@ struct Node {
   std::unordered_map<Id, Peer *> peerMap;
 
   std::unordered_map<uint32_t, uint64_t> minTxTimestamp;
+
+  std::queue<std::tuple<Id, Id, bool, Tx>> resentTxs;
 
   Node(Id id) {
     this->id = id;
