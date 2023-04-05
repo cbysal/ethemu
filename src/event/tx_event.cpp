@@ -30,7 +30,8 @@ void TxEvent::process(std::priority_queue<Event *, std::vector<Event *>, Compare
     if (byHash)
       interval *= 3;
     uint64_t comingTimestamp = timestamp + interval;
-    if (peerNode->minTxTimestamp.count(txId) && peerNode->minTxTimestamp[txId] <= comingTimestamp)
+    auto it = peerNode->minTxTimestamp.find(txId);
+    if (it != peerNode->minTxTimestamp.end() && it->second <= comingTimestamp)
       continue;
     queue.push(new TxEvent(comingTimestamp, to, peer->id, byHash, tx));
     peerNode->minTxTimestamp[txId] = comingTimestamp;
