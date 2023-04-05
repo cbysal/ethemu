@@ -3,12 +3,11 @@
 #include <string>
 #include <vector>
 
-#include "core/types/header.h"
 #include "core/types/transaction.h"
 
 class Block {
 public:
-  std::shared_ptr<Header> header;
+  uint32_t number;
   std::vector<Tx> txs;
 
 private:
@@ -26,14 +25,12 @@ private:
   }
 
 public:
-  Block(const std::shared_ptr<Header> &header, const std::vector<Tx> &txs) : header(header), txs(txs) {}
+  Block(const uint32_t number, const std::vector<Tx> &txs) : number(number), txs(txs) {}
 
-  Block(Hash parentHash, Id coinbase, uint32_t number, const std::vector<Tx> &txs)
-      : header(std::make_shared<Header>(parentHash, coinbase, number, txsHash(txs))), txs(txs) {}
-
-  uint32_t number() const { return header->number; }
-
-  Id coinbase() const { return header->coinbase; }
-
-  Hash hash() const { return header->hash(); }
+  Hash hash() const {
+    Hash hash = number << 16;
+    Hash hash1 = txsHash(txs);
+    hash |= (hash1 >> 16) ^ (hash1 & 0xffff);
+    return hash;
+  }
 };

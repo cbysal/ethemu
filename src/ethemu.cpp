@@ -70,9 +70,9 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
   for (auto &node : nodes)
     for (auto peer : global.nodes[node->id]->peers)
       node->addPeer(nodes[peer]);
-  std::shared_ptr<Block> genesisBlock = std::make_shared<Block>(0, 0, 0, std::vector<Tx>{});
+  std::shared_ptr<Block> genesisBlock = std::make_shared<Block>(0, std::vector<Tx>{});
   for (auto &node : nodes) {
-    node->blocksByNumber[genesisBlock->number()] = genesisBlock;
+    node->blocksByNumber[genesisBlock->number] = genesisBlock;
     node->blocksByHash[genesisBlock->hash()] = genesisBlock;
   }
   preGenTxs(simTime, global.minTxInterval, global.maxTxInterval, prefill, nodes.size());

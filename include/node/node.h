@@ -41,9 +41,9 @@ struct Node {
     peerMap[node->id] = new Peer(node->id);
   }
   void insertBlock(const std::shared_ptr<Block> &block) {
-    blocksByNumber[block->number()] = block;
+    blocksByNumber[block->number] = block;
     blocksByHash[block->hash()] = block;
-    current = block->number();
+    current = block->number;
     txPool->notifyBlockTxs(block->txs);
     for (Tx tx : block->txs)
       minTxTimestamp.erase(tx >> 32);
