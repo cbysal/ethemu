@@ -96,11 +96,12 @@ public:
   bool contains(uint32_t txId) { return allTxs[txId]; }
 
   std::vector<Tx> pollTxs() {
+    int num = 150 + rand() % 11;
     std::unordered_set<Id> usedIds;
     std::vector<Tx> txs;
-    while (txs.size() < 200 && pendingSize > 0) {
+    while (txs.size() < num && pendingSize > 0) {
       for (auto &[_, pendingTxs] : pending) {
-        if (txs.size() >= 200)
+        if (txs.size() >= num)
           break;
         if (pendingTxs.empty())
           continue;

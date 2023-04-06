@@ -12,8 +12,8 @@ void loadConfig(const std::string &dataDir) {
   global.period = data["period"];
   global.minDelay = data["minDelay"];
   global.maxDelay = data["maxDelay"];
-  global.minTxInterval = data["minTxInterval"];
-  global.maxTxInterval = data["maxTxInterval"];
+  global.minTx = data["minTx"];
+  global.maxTx = data["maxTx"];
   for (auto [key, value] : data["nodes"].items()) {
     Id id = std::stoi(key);
     std::unique_ptr<EmuNode> node = std::make_unique<EmuNode>();
@@ -31,8 +31,8 @@ void storeConfig(const std::string &dataDir) {
   data["period"] = global.period;
   data["minDelay"] = global.minDelay;
   data["maxDelay"] = global.maxDelay;
-  data["minTxInterval"] = global.minTxInterval;
-  data["maxTxInterval"] = global.maxTxInterval;
+  data["minTx"] = global.minTx;
+  data["maxTx"] = global.maxTx;
   for (auto &[id, node] : global.nodes) {
     json nodeJson = node->toJson();
     data["nodes"][std::to_string(id)] = nodeJson;

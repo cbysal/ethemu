@@ -11,7 +11,7 @@ const std::string CONFIG_JSON = "config.json";
 struct Config {
   uint64_t period;
   uint64_t minDelay, maxDelay;
-  uint64_t minTxInterval, maxTxInterval;
+  uint64_t minTx, maxTx;
   std::unordered_map<Id, std::unique_ptr<EmuNode>> nodes;
 };
 

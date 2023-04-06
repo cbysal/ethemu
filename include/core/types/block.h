@@ -5,32 +5,24 @@
 
 #include "core/types/transaction.h"
 
+void preGenBlocks(uint64_t simTime, uint64_t minBlockInterval, uint64_t maxBlockInterval, int nodeNum);
+
 class Block {
 public:
   uint32_t number;
+  Id coinbase;
   std::vector<Tx> txs;
 
 private:
   Block(){};
 
-  Hash txsHash(const std::vector<Tx> &txs) const {
-    Hash hash = 0;
-    int off = 0;
-    for (Tx tx : txs) {
-      Hash txHash = hashTx(tx);
-      hash ^= (txHash << off) | (txHash >> (32 - off));
-      off = (off + 1) % 32;
-    }
-    return hash;
-  }
+  Hash txsHash(const std::vector<Tx> &txs) const;
 
 public:
-  Block(const uint32_t number, const std::vector<Tx> &txs) : number(number), txs(txs) {}
+  Block(const uint32_t number, Id coinbase);
 
-  Hash hash() const {
-    Hash hash = number << 16;
-    Hash hash1 = txsHash(txs);
-    hash |= (hash1 >> 16) ^ (hash1 & 0xffff);
-    return hash;
-  }
+  void setTxs(const std::vector<Tx> &);
+  Hash hash() const;
 };
+
+extern std::vector<std::pair<uint64_t, Block *>> blocks;

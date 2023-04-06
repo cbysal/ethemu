@@ -15,8 +15,8 @@ struct Node {
   Id id;
   uint64_t current;
   TxPool *txPool;
-  std::unordered_map<Hash, std::shared_ptr<Block>> blocksByNumber;
-  std::unordered_map<Hash, std::shared_ptr<Block>> blocksByHash;
+  std::unordered_map<Hash, Block *> blocksByNumber;
+  std::unordered_map<Hash, Block *> blocksByHash;
   std::vector<Id> peerList;
   std::unordered_map<Id, Peer *> peerMap;
 
@@ -40,7 +40,7 @@ struct Node {
     peerList.push_back(node->id);
     peerMap[node->id] = new Peer(node->id);
   }
-  void insertBlock(const std::shared_ptr<Block> &block) {
+  void insertBlock(Block *block) {
     blocksByNumber[block->number] = block;
     blocksByHash[block->hash()] = block;
     current = block->number;
@@ -48,5 +48,4 @@ struct Node {
     for (Tx tx : block->txs)
       minTxTimestamp.erase(tx >> 32);
   }
-  std::vector<Tx> getTxs() { return txPool->pollTxs(); }
 };

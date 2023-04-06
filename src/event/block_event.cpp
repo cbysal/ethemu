@@ -5,12 +5,20 @@
 #include "event/block_event.h"
 #include "event/tx_event.h"
 
-BlockEvent::BlockEvent(uint64_t timestamp, Id from, Id to, bool byHash, const std::shared_ptr<Block> &block)
+BlockEvent::BlockEvent(uint64_t timestamp, Id from, Id to, bool byHash, Block *block)
     : Event(timestamp), from(from), to(to), byHash(byHash), block(block) {}
 
 void BlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
                          const std::vector<Node *> &nodes) const {
   Node *node = nodes[to];
+  if (from == to) {
+    std::vector<Tx> txs = node->txPool->pollTxs();
+    block->setTxs(txs);
+    std::cout << "New Block (Number: " << block->number << ", Hash: " << hashHex(block->hash())
+              << ", Coinbase: " << idToString(node->id) << ", Txs: " << block->txs.size() << ")" << std::endl;
+    std::cout << timestamp << ": events " << queue.size() << " id " << idToString(node->id) << " txpool "
+              << node->txPool->size() << std::endl;
+  }
   Hash hash = block->hash();
   if (node->blocksByHash.count(hash))
     return;

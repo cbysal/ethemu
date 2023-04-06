@@ -5,7 +5,7 @@
 #include "cxxopts.hpp"
 #include "emu/config.h"
 #include "ethemu.h"
-#include "event/block_timer_event.h"
+#include "event/block_event.h"
 #include "event/tx_event.h"
 #include "node/node.h"
 
@@ -23,10 +23,10 @@ Option peerMaxOpt("peer.max", "Restrict the maximum peer num for each node",
                   cxxopts::value<int>()->default_value("50"));
 Option delayMinOpt("delay.min", "Minimum delay between peers", cxxopts::value<int>()->default_value("500"));
 Option delayMaxOpt("delay.max", "Maximum delay between peers", cxxopts::value<int>()->default_value("1000"));
-Option txMinOpt("tx.min", "Restrict the minimum transaction num sent during each block time",
-                cxxopts::value<int>()->default_value("200"));
-Option txMaxOpt("tx.max", "Restrict the maximum transaction num sent during each block time",
-                cxxopts::value<int>()->default_value("210"));
+Option txMinOpt("tx.min", "Restrict the minimum transaction num in a block",
+                cxxopts::value<int>()->default_value("150"));
+Option txMaxOpt("tx.max", "Restrict the maximum transaction num in a block",
+                cxxopts::value<int>()->default_value("160"));
 Option blockTimeOpt("block.time", "Interval of consensus for blocks", cxxopts::value<int>()->default_value("15000"));
 Option prefillOpt("prefill", "Fill transaction pool with transactions before emulation",
                   cxxopts::value<int>()->default_value("0"));
@@ -70,30 +70,31 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
   for (auto &node : nodes)
     for (auto peer : global.nodes[node->id]->peers)
       node->addPeer(nodes[peer]);
-  std::shared_ptr<Block> genesisBlock = std::make_shared<Block>(0, std::vector<Tx>{});
-  for (auto &node : nodes) {
-    node->blocksByNumber[genesisBlock->number] = genesisBlock;
-    node->blocksByHash[genesisBlock->hash()] = genesisBlock;
-  }
-  preGenTxs(simTime, global.minTxInterval, global.maxTxInterval, prefill, nodes.size());
+  preGenBlocks(simTime, 12000, 15000, nodes.size());
+  preGenTxs(blocks, global.minTx, global.maxTx, prefill, nodes.size());
   for (auto &node : nodes)
     node->setTxNum(txs.size());
   std::priority_queue<Event *, std::vector<Event *>, CompareEvent> events;
-  events.push(new BlockTimerEvent(0));
-  for (auto &[curTime, tx] : txs) {
-    while (!events.empty() && events.top()->timestamp < curTime) {
+  int curTx = 0;
+  for (auto &[curTime, block] : blocks) {
+    while (curTx < txs.size() && txs[curTx].first < curTime) {
+      auto &[txTime, tx] = txs[curTx];
+      Id from = tx >> 16;
+      Event *event = new TxEvent(txTime, from, from, false, tx);
+      events.push(event);
+      curTx++;
+    }
+    events.push(new BlockEvent(curTime, block->coinbase, block->coinbase, false, block));
+    while (!events.empty() && events.top()->timestamp <= curTime) {
       Event *event = events.top();
       if (event->timestamp > simTime)
         break;
       events.pop();
       event->process(events, nodes);
-      if (verbosity || typeid(*event) == typeid(BlockTimerEvent))
+      if (verbosity)
         std::cout << "Events: " << events.size() << " " << event->toString() << std::endl;
       delete event;
     }
-    Id from = tx >> 16;
-    Event *event = new TxEvent(curTime, from, from, false, tx);
-    events.push(event);
   }
   while (!events.empty()) {
     Event *event = events.top();
