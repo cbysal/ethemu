@@ -15,8 +15,6 @@ struct Node {
   Id id;
   uint64_t current;
   TxPool *txPool;
-  std::unordered_map<Hash, Block *> blocksByNumber;
-  std::unordered_map<Hash, Block *> blocksByHash;
   std::vector<Id> peerList;
   std::unordered_map<Id, Peer *> peerMap;
 
@@ -41,8 +39,6 @@ struct Node {
     peerMap[node->id] = new Peer(node->id);
   }
   void insertBlock(Block *block) {
-    blocksByNumber[block->number] = block;
-    blocksByHash[block->hash()] = block;
     current = block->number;
     txPool->notifyBlockTxs(block->txs);
     for (Tx tx : block->txs)

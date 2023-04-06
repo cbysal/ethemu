@@ -20,7 +20,7 @@ void BlockEvent::process(std::priority_queue<Event *, std::vector<Event *>, Comp
               << node->txPool->size() << std::endl;
   }
   Hash hash = block->hash();
-  if (node->blocksByHash.count(hash))
+  if (block->number <= node->current)
     return;
   node->insertBlock(block);
   std::vector<Peer *> peersWithoutBlock;
