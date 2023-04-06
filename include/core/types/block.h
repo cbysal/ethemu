@@ -26,3 +26,5 @@ public:
 };
 
 extern std::vector<std::pair<uint64_t, Block *>> blocks;
+
+void outputBlocks(const std::string &file);

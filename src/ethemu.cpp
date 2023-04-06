@@ -101,6 +101,8 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
     events.pop();
     delete event;
   }
+  outputTxs("txs.csv");
+  outputBlocks("blocks.csv");
   for (Node *node : nodes)
     delete node;
   std::cerr << "Mem: ";

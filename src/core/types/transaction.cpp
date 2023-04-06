@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstdlib>
+#include <fstream>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -7,6 +8,15 @@
 #include "core/types/transaction.h"
 
 std::vector<std::pair<uint64_t, Tx>> txs;
+
+void outputTxs(const std::string &file) {
+  std::ofstream ofs(file.c_str());
+  ofs << "timestamp,id,nonce" << std::endl;
+  for (auto &[timestamp, tx] : txs) {
+    ofs << timestamp << ',' << (tx >> 16 & 0xffff) << ',' << (tx & 0xffff) << std::endl;
+  }
+  ofs.close();
+}
 
 void preGenTxs(std::vector<std::pair<uint64_t, Block *>> &blocks, uint64_t minTx, uint64_t maxTx, uint64_t prefill,
                int nodeNum) {

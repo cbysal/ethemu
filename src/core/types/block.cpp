@@ -1,4 +1,7 @@
+#include <fstream>
+
 #include "core/types/block.h"
+#include "common/math.h"
 
 std::vector<std::pair<uint64_t, Block *>> blocks;
 
@@ -33,4 +36,20 @@ Hash Block::hash() const {
   Hash hash1 = txsHash(txs);
   hash |= (hash1 >> 16) ^ (hash1 & 0xffff);
   return hash;
+}
+
+void outputBlocks(const std::string &file) {
+  std::ofstream ofs(file);
+  ofs << "timestamp,number,coinbase,txs" << std::endl;
+  for (auto &[timestamp, block] : blocks) {
+    ofs << timestamp << ',' << block->number << ',' << block->coinbase << ',';
+    std::string txs;
+    for (Tx tx : block->txs) {
+      txs += hashHex(tx) + ' ';
+    }
+    if (!txs.empty())
+      txs.pop_back();
+    ofs << txs << std::endl;
+  }
+  ofs.close();
 }
