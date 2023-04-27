@@ -1,9 +1,11 @@
 #pragma once
 
-#include "event/event.h"
+#include "core/types/block.h"
+#include "node/node.h"
 
-class BlockEvent : public Event {
+class BlockEvent {
 public:
+  const uint64_t timestamp;
   const Id from;
   const Id to;
   const bool byHash;
@@ -11,7 +13,6 @@ public:
 
   BlockEvent(uint64_t timestamp, Id from, Id to, bool byHash, Block *block);
 
-  void process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
-               const std::vector<Node *> &nodes) const;
+  void process(const std::vector<Node *> &nodes) const;
   std::string toString() const;
 };

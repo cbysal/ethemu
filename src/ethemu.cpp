@@ -1,5 +1,6 @@
 #include <csignal>
 #include <iostream>
+#include <random>
 
 #include "core/types/transaction.h"
 #include "cxxopts.hpp"
@@ -36,6 +37,35 @@ Option verbosityOpt("verbosity", "Show all outputs if it is on", cxxopts::value<
 std::vector<Option> opts = {datadirOpt, nodesOpt, minersOption, peerMinOpt, peerMaxOpt, delayMinOpt, delayMaxOpt,
                             txMinOpt,   txMaxOpt, blockTimeOpt, simTimeOpt, prefillOpt, verbosityOpt};
 
+std::vector<std::pair<uint16_t, uint64_t>>
+dijkstra(const std::vector<std::vector<std::pair<uint16_t, uint64_t>>> &graph, Id from) {
+  std::vector<bool> visited(graph.size(), false);
+  std::priority_queue<std::pair<uint64_t, uint16_t>, std::vector<std::pair<uint64_t, uint16_t>>,
+                      std::greater<std::pair<uint64_t, uint16_t>>>
+      pq;
+  std::vector<std::pair<uint16_t, uint64_t>> result(graph.size(), {UINT16_MAX, UINT64_MAX});
+  result[from] = {from, 0};
+  pq.push(std::make_pair(0, from));
+  while (!pq.empty()) {
+    Id from = pq.top().second;
+    pq.pop();
+    if (visited[from])
+      continue;
+    visited[from] = true;
+    for (auto &[to, len] : graph[from]) {
+      if (result[to].second > result[from].second + len) {
+        result[to].second = result[from].second + len;
+        result[to].first = from;
+        pq.push(std::make_pair(result[to].second, to));
+      }
+    }
+  }
+  return result;
+}
+
+std::vector<BlockEvent *> blockEvents;
+std::vector<TxEvent *> txEvents;
+
 int main(int argc, char *argv[]) {
   std::for_each(opts.begin(), opts.end(), [](auto opt) { options.add_option("", opt); });
   auto result = options.parse(argc, argv);
@@ -71,35 +101,63 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
     for (auto peer : global.nodes[node->id]->peers)
       node->addPeer(nodes[peer]);
   preGenBlocks(simTime, 12000, 15000, nodes.size());
-  preGenTxs(blocks, global.minTx, global.maxTx, prefill, nodes.size());
-  for (auto &node : nodes)
-    node->setTxNum(txs.size());
-  std::priority_queue<Event *, std::vector<Event *>, CompareEvent> events;
-  int curTx = 0;
-  for (auto &[curTime, block] : blocks) {
-    while (curTx < txs.size() && txs[curTx].first < curTime) {
-      auto &[txTime, tx] = txs[curTx];
-      Id from = tx >> 16;
-      Event *event = new TxEvent(txTime, from, from, false, tx);
-      events.push(event);
-      curTx++;
+  blockEvents.reserve(blocks.size() * nodes.size());
+  for (auto &[blockTime, block] : blocks) {
+    std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays;
+    delays.reserve(nodes.size());
+    for (Node *node : nodes) {
+      std::vector<std::pair<uint16_t, uint64_t>> delay(node->peerList.size());
+      int n = std::sqrt(node->peerList.size());
+      for (int i = 0; i < n; i++)
+        delay[i] = {node->peerList[i], global.minDelay + rand() % (global.maxDelay - global.minDelay)};
+      for (int i = n; i < node->peerList.size(); i++)
+        delay[i] = {node->peerList[i],
+                    (global.minDelay + rand() % (global.maxDelay - global.minDelay)) * 5 + rand() % 500};
+      delays.push_back(delay);
     }
-    events.push(new BlockEvent(curTime, block->coinbase, block->coinbase, false, block));
-    while (!events.empty() && events.top()->timestamp <= curTime) {
-      Event *event = events.top();
-      if (event->timestamp > simTime)
-        break;
-      events.pop();
-      event->process(events, nodes);
-      if (verbosity)
-        std::cout << "Events: " << events.size() << " " << event->toString() << std::endl;
-      delete event;
+    std::vector<std::pair<uint16_t, uint64_t>> timeSpent = dijkstra(delays, block->coinbase);
+    for (Id to = 0; to < nodes.size(); to++) {
+      Id from = timeSpent[to].first;
+      uint64_t dly = timeSpent[to].second;
+      blockEvents.push_back(new BlockEvent(blockTime + dly, from, to, false, block));
     }
   }
-  while (!events.empty()) {
-    Event *event = events.top();
-    events.pop();
-    delete event;
+  std::sort(blockEvents.begin(), blockEvents.end(),
+            [](BlockEvent *e1, BlockEvent *e2) { return e1->timestamp < e2->timestamp; });
+  preGenTxs(blocks, global.minTx, global.maxTx, prefill, nodes.size());
+  txEvents.reserve(txs.size() * nodes.size());
+  for (auto &[txTime, tx] : txs) {
+    std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays;
+    delays.reserve(nodes.size());
+    for (Node *node : nodes) {
+      std::vector<std::pair<uint16_t, uint64_t>> delay(node->peerList.size());
+      int n = std::sqrt(node->peerList.size());
+      for (int i = 0; i < n; i++)
+        delay[i] = {node->peerList[i], global.minDelay + rand() % (global.maxDelay - global.minDelay)};
+      for (int i = n; i < node->peerList.size(); i++)
+        delay[i] = {node->peerList[i], (global.minDelay + rand() % (global.maxDelay - global.minDelay)) * 3};
+      delays.push_back(delay);
+    }
+    std::vector<std::pair<uint16_t, uint64_t>> timeSpent = dijkstra(delays, (Id)(tx >> 16));
+    for (Id to = 0; to < nodes.size(); to++) {
+      Id from = timeSpent[to].first;
+      uint64_t dly = timeSpent[to].second;
+      txEvents.push_back(new TxEvent(txTime + dly, from, to, false, tx));
+    }
+  }
+  std::sort(txEvents.begin(), txEvents.end(), [](TxEvent *e1, TxEvent *e2) { return e1->timestamp < e2->timestamp; });
+  for (auto &node : nodes)
+    node->setTxNum(txs.size());
+  int curTx = 0;
+  for (BlockEvent *blockEvent : blockEvents) {
+    uint64_t curTime = blockEvent->timestamp;
+    while (curTx < txEvents.size() && txEvents[curTx]->timestamp < curTime) {
+      txEvents[curTx]->process(nodes);
+      curTx++;
+    }
+    blockEvent->process(nodes);
+    if (verbosity)
+      std::cout << blockEvent->toString() << std::endl;
   }
   outputTxs("txs.csv");
   outputBlocks("blocks.csv");

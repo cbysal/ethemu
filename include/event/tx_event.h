@@ -1,9 +1,11 @@
 #pragma once
 
-#include "event/event.h"
+#include "core/types/transaction.h"
+#include "node/node.h"
 
-class TxEvent : public Event {
+class TxEvent {
 public:
+  const uint64_t timestamp;
   const Id from;
   const Id to;
   const bool byHash;
@@ -11,7 +13,6 @@ public:
 
   TxEvent(uint64_t timestamp, Id from, Id to, bool byHash, Tx tx);
 
-  void process(std::priority_queue<Event *, std::vector<Event *>, CompareEvent> &queue,
-               const std::vector<Node *> &nodes) const;
+  void process(const std::vector<Node *> &nodes) const;
   std::string toString() const;
 };
