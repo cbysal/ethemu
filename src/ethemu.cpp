@@ -1,6 +1,9 @@
+#include <atomic>
 #include <csignal>
 #include <iostream>
+#include <mutex>
 #include <random>
+#include <thread>
 
 #include "core/types/transaction.h"
 #include "cxxopts.hpp"
@@ -63,8 +66,14 @@ dijkstra(const std::vector<std::vector<std::pair<uint16_t, uint64_t>>> &graph, I
   return result;
 }
 
+const int PARALLEL = 16;
+std::vector<Node *> nodes;
 std::vector<BlockEvent *> blockEvents;
+std::atomic_int blockEventId = 0;
+std::mutex blockMu;
+std::atomic_int txEventId = 0;
 std::vector<TxEvent *> txEvents;
+std::mutex txMu;
 
 int main(int argc, char *argv[]) {
   std::for_each(opts.begin(), opts.end(), [](auto opt) { options.add_option("", opt); });
@@ -89,9 +98,65 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
+void genBlockEvents() {
+  std::random_device rd;
+  std::default_random_engine dre(rd());
+  int curId;
+  while ((curId = blockEventId++) < blocks.size()) {
+    auto &[blockTime, block] = blocks[curId];
+    std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays;
+    delays.reserve(nodes.size());
+    for (Node *node : nodes) {
+      std::vector<std::pair<uint16_t, uint64_t>> delay(node->peerList.size());
+      int n = std::sqrt(node->peerList.size());
+      for (int i = 0; i < n; i++)
+        delay[i] = {node->peerList[i], global.minDelay + dre() % (global.maxDelay - global.minDelay)};
+      for (int i = n; i < node->peerList.size(); i++)
+        delay[i] = {node->peerList[i],
+                    (global.minDelay + dre() % (global.maxDelay - global.minDelay)) * 5 + dre() % 500};
+      delays.push_back(delay);
+    }
+    std::vector<std::pair<uint16_t, uint64_t>> timeSpent = dijkstra(delays, block->coinbase);
+    blockMu.lock();
+    for (Id to = 0; to < nodes.size(); to++) {
+      Id from = timeSpent[to].first;
+      uint64_t dly = timeSpent[to].second;
+      blockEvents.push_back(new BlockEvent(blockTime + dly, from, to, false, block));
+    }
+    blockMu.unlock();
+  }
+}
+
+void genTxEvents() {
+  std::random_device rd;
+  std::default_random_engine dre(rd());
+  int curId;
+  while ((curId = txEventId++) < txs.size()) {
+    auto &[txTime, tx] = txs[curId];
+    std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays;
+    delays.reserve(nodes.size());
+    for (Node *node : nodes) {
+      std::vector<std::pair<uint16_t, uint64_t>> delay(node->peerList.size());
+      int n = std::sqrt(node->peerList.size());
+      for (int i = 0; i < n; i++)
+        delay[i] = {node->peerList[i], global.minDelay + dre() % (global.maxDelay - global.minDelay)};
+      for (int i = n; i < node->peerList.size(); i++)
+        delay[i] = {node->peerList[i], (global.minDelay + dre() % (global.maxDelay - global.minDelay)) * 3};
+      delays.push_back(delay);
+    }
+    std::vector<std::pair<uint16_t, uint64_t>> timeSpent = dijkstra(delays, (Id)(tx >> 16));
+    txMu.lock();
+    for (Id to = 0; to < nodes.size(); to++) {
+      Id from = timeSpent[to].first;
+      uint64_t dly = timeSpent[to].second;
+      txEvents.push_back(new TxEvent(txTime + dly, from, to, false, tx));
+    }
+    txMu.unlock();
+  }
+}
+
 void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool verbosity) {
   loadConfig(dataDir);
-  std::vector<Node *> nodes;
   for (int i = 0; i < global.nodes.size(); i++) {
     const std::unique_ptr<EmuNode> &emuNode = global.nodes[i];
     Node *node = new Node(emuNode->id);
@@ -102,49 +167,22 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
       node->addPeer(nodes[peer]);
   preGenBlocks(simTime, 12000, 15000, nodes.size());
   blockEvents.reserve(blocks.size() * nodes.size());
-  for (auto &[blockTime, block] : blocks) {
-    std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays;
-    delays.reserve(nodes.size());
-    for (Node *node : nodes) {
-      std::vector<std::pair<uint16_t, uint64_t>> delay(node->peerList.size());
-      int n = std::sqrt(node->peerList.size());
-      for (int i = 0; i < n; i++)
-        delay[i] = {node->peerList[i], global.minDelay + rand() % (global.maxDelay - global.minDelay)};
-      for (int i = n; i < node->peerList.size(); i++)
-        delay[i] = {node->peerList[i],
-                    (global.minDelay + rand() % (global.maxDelay - global.minDelay)) * 5 + rand() % 500};
-      delays.push_back(delay);
-    }
-    std::vector<std::pair<uint16_t, uint64_t>> timeSpent = dijkstra(delays, block->coinbase);
-    for (Id to = 0; to < nodes.size(); to++) {
-      Id from = timeSpent[to].first;
-      uint64_t dly = timeSpent[to].second;
-      blockEvents.push_back(new BlockEvent(blockTime + dly, from, to, false, block));
-    }
+  std::vector<std::thread> genBlockThreads(PARALLEL);
+  for (int i = 0; i < PARALLEL; i++) {
+    genBlockThreads[i] = std::thread(genBlockEvents);
   }
+  for (std::thread &genBlockThread : genBlockThreads)
+    genBlockThread.join();
   std::sort(blockEvents.begin(), blockEvents.end(),
             [](BlockEvent *e1, BlockEvent *e2) { return e1->timestamp < e2->timestamp; });
   preGenTxs(blocks, global.minTx, global.maxTx, prefill, nodes.size());
   txEvents.reserve(txs.size() * nodes.size());
-  for (auto &[txTime, tx] : txs) {
-    std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays;
-    delays.reserve(nodes.size());
-    for (Node *node : nodes) {
-      std::vector<std::pair<uint16_t, uint64_t>> delay(node->peerList.size());
-      int n = std::sqrt(node->peerList.size());
-      for (int i = 0; i < n; i++)
-        delay[i] = {node->peerList[i], global.minDelay + rand() % (global.maxDelay - global.minDelay)};
-      for (int i = n; i < node->peerList.size(); i++)
-        delay[i] = {node->peerList[i], (global.minDelay + rand() % (global.maxDelay - global.minDelay)) * 3};
-      delays.push_back(delay);
-    }
-    std::vector<std::pair<uint16_t, uint64_t>> timeSpent = dijkstra(delays, (Id)(tx >> 16));
-    for (Id to = 0; to < nodes.size(); to++) {
-      Id from = timeSpent[to].first;
-      uint64_t dly = timeSpent[to].second;
-      txEvents.push_back(new TxEvent(txTime + dly, from, to, false, tx));
-    }
+  std::vector<std::thread> genTxThreads(PARALLEL);
+  for (int i = 0; i < PARALLEL; i++) {
+    genTxThreads[i] = std::thread(genTxEvents);
   }
+  for (std::thread &genTxThread : genTxThreads)
+    genTxThread.join();
   std::sort(txEvents.begin(), txEvents.end(), [](TxEvent *e1, TxEvent *e2) { return e1->timestamp < e2->timestamp; });
   for (auto &node : nodes)
     node->setTxNum(txs.size());
