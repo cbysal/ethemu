@@ -4,8 +4,8 @@
 #include "emu/config.h"
 #include "event/block_event.h"
 
-BlockEvent::BlockEvent(uint64_t timestamp, Id from, Id to, bool byHash, Block *block)
-    : timestamp(timestamp), from(from), to(to), byHash(byHash), block(block) {}
+BlockEvent::BlockEvent(uint64_t timestamp, Id from, Id to, Block *block)
+    : timestamp(timestamp), from(from), to(to), block(block) {}
 
 void BlockEvent::process(const std::vector<Node *> &nodes) const {
   Node *node = nodes[to];
@@ -20,7 +20,7 @@ void BlockEvent::process(const std::vector<Node *> &nodes) const {
     return;
   node->insertBlock(block);
   while (!node->resentTxs.empty()) {
-    const auto &[from, to, byHash, tx] = node->resentTxs.front();
+    const auto &[from, to, tx] = node->resentTxs.front();
     uint32_t txId = tx >> 32;
     Node *node = nodes[to];
     if (node->txPool->contains(txId)) {
@@ -37,6 +37,5 @@ void BlockEvent::process(const std::vector<Node *> &nodes) const {
 
 std::string BlockEvent::toString() const {
   return "BlockEvent (timestamp: " + std::to_string(timestamp) + ", from: " + idToString(from) +
-         ", to: " + idToString(to) + (byHash ? ", byHash: true, block: " : ", byHash: false, block: ") +
-         hashHex(block->hash()) + ")";
+         ", to: " + idToString(to) + ", block: " + hashHex(block->hash()) + ")";
 }

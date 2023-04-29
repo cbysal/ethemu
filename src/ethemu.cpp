@@ -121,7 +121,7 @@ void genBlockEvents() {
     for (Id to = 0; to < nodes.size(); to++) {
       Id from = timeSpent[to].first;
       uint64_t dly = timeSpent[to].second;
-      blockEvents.push_back(new BlockEvent(blockTime + dly, from, to, false, block));
+      blockEvents.push_back(new BlockEvent(blockTime + dly, from, to, block));
     }
     blockMu.unlock();
   }
@@ -130,26 +130,26 @@ void genBlockEvents() {
 void genTxEvents() {
   std::random_device rd;
   std::default_random_engine dre(rd());
+  std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays(nodes.size());
   int curId;
   while ((curId = txEventId++) < txs.size()) {
     auto &[txTime, tx] = txs[curId];
-    std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays;
-    delays.reserve(nodes.size());
-    for (Node *node : nodes) {
-      std::vector<std::pair<uint16_t, uint64_t>> delay(node->peerList.size());
-      int n = std::sqrt(node->peerList.size());
-      for (int i = 0; i < n; i++)
-        delay[i] = {node->peerList[i], global.minDelay + dre() % (global.maxDelay - global.minDelay)};
-      for (int i = n; i < node->peerList.size(); i++)
-        delay[i] = {node->peerList[i], (global.minDelay + dre() % (global.maxDelay - global.minDelay)) * 3};
-      delays.push_back(delay);
+    for (Id i = 0; i < nodes.size(); i++) {
+      Node *node = nodes[i];
+      std::vector<std::pair<uint16_t, uint64_t>> &delay = delays[i];
+      delay.resize(node->peerList.size());
+      int n = std::sqrt(delay.size());
+      for (int j = 0; j < n; j++)
+        delay[j] = {node->peerList[j], global.minDelay + dre() % (global.maxDelay - global.minDelay)};
+      for (int j = n; j < delay.size(); j++)
+        delay[j] = {node->peerList[j], (global.minDelay + dre() % (global.maxDelay - global.minDelay)) * 3};
     }
     std::vector<std::pair<uint16_t, uint64_t>> timeSpent = dijkstra(delays, (Id)(tx >> 16));
     txMu.lock();
     for (Id to = 0; to < nodes.size(); to++) {
       Id from = timeSpent[to].first;
       uint64_t dly = timeSpent[to].second;
-      txEvents.push_back(new TxEvent(txTime + dly, from, to, false, tx));
+      txEvents.push_back(new TxEvent(txTime + dly, from, to, tx));
     }
     txMu.unlock();
   }
