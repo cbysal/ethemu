@@ -1,7 +1,7 @@
 #include <fstream>
 
-#include "core/types/block.h"
 #include "common/math.h"
+#include "core/types/block.h"
 
 std::vector<std::pair<uint64_t, Block *>> blocks;
 
@@ -16,27 +16,11 @@ void preGenBlocks(uint64_t simTime, uint64_t minBlockInterval, uint64_t maxBlock
   } while (curTime <= simTime);
 }
 
-Hash Block::txsHash(const std::vector<Tx> &txs) const {
-  Hash hash = 0;
-  int off = 0;
-  for (Tx tx : txs) {
-    Hash txHash = hashTx(tx);
-    hash ^= (txHash << off) | (txHash >> (32 - off));
-    off = (off + 1) % 32;
-  }
-  return hash;
-}
-
 Block::Block(const uint32_t number, Id coinbase) : number(number), coinbase(coinbase) {}
 
 void Block::setTxs(const std::vector<Tx> &txs) { this->txs = txs; }
 
-Hash Block::hash() const {
-  Hash hash = number << 16;
-  Hash hash1 = txsHash(txs);
-  hash |= (hash1 >> 16) ^ (hash1 & 0xffff);
-  return hash;
-}
+Hash Block::hash() const { return number; }
 
 void outputBlocks(const std::string &file) {
   std::ofstream ofs(file);

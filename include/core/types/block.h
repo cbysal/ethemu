@@ -16,8 +16,6 @@ public:
 private:
   Block(){};
 
-  Hash txsHash(const std::vector<Tx> &txs) const;
-
 public:
   Block(const uint32_t number, Id coinbase);
 

@@ -5,12 +5,11 @@
 #include <random>
 #include <thread>
 
+#include "common/math.h"
 #include "core/types/transaction.h"
 #include "cxxopts.hpp"
 #include "emu/config.h"
 #include "ethemu.h"
-#include "event/block_event.h"
-#include "event/tx_event.h"
 #include "node/node.h"
 
 using Options = cxxopts::Options;
@@ -66,14 +65,70 @@ dijkstra(const std::vector<std::vector<std::pair<uint16_t, uint64_t>>> &graph, I
   return result;
 }
 
+typedef std::tuple<bool, uint64_t, Id, Id, Hash> Event;
+
 const int PARALLEL = 16;
 std::vector<Node *> nodes;
-std::vector<BlockEvent *> blockEvents;
+std::vector<Event> events;
 std::atomic_int blockEventId = 0;
 std::mutex blockMu;
 std::atomic_int txEventId = 0;
-std::vector<TxEvent *> txEvents;
 std::mutex txMu;
+
+void processBlockEvent(uint64_t timestamp, Id from, Id to, Hash hash) {
+  Block *block = blocks[hash].second;
+  Node *node = nodes[to];
+  if (from == to) {
+    std::vector<Tx> txs = node->txPool->pollTxs();
+    block->setTxs(txs);
+    std::cout << "New Block (Number: " << block->number << ", Hash: " << hashHex(block->hash())
+              << ", Coinbase: " << idToString(node->id) << ", Txs: " << block->txs.size() << ")" << std::endl;
+    std::cout << timestamp << " id " << idToString(node->id) << " txpool " << node->txPool->size() << std::endl;
+  }
+  if (block->number <= node->current)
+    return;
+  node->insertBlock(block);
+  while (!node->resentTxs.empty()) {
+    const auto &[from, to, tx] = node->resentTxs.front();
+    uint32_t txId = tx >> 32;
+    Node *node = nodes[to];
+    if (node->txPool->contains(txId)) {
+      node->resentTxs.pop();
+      continue;
+    }
+    bool isAdded = node->txPool->addTx(tx);
+    if (!isAdded) {
+      break;
+    }
+    node->resentTxs.pop();
+  }
+}
+
+void processTxEvent(uint64_t timestamp, Id from, Id to, Hash hash) {
+  Tx tx = txs[hash].second;
+  uint32_t txId = tx >> 32;
+  Node *node = nodes[to];
+  if (node->txPool->contains(txId))
+    return;
+  bool isAdded = node->txPool->addTx(tx);
+  if (!isAdded) {
+    node->resentTxs.emplace(from, to, tx);
+    return;
+  }
+}
+
+void process(const Event &event) {
+  bool isBlock;
+  uint64_t timestamp;
+  Id from, to;
+  Hash hash;
+  std::tie(isBlock, timestamp, from, to, hash) = event;
+  if (isBlock) {
+    processBlockEvent(timestamp, from, to, hash);
+  } else {
+    processTxEvent(timestamp, from, to, hash);
+  }
+}
 
 int main(int argc, char *argv[]) {
   std::for_each(opts.begin(), opts.end(), [](auto opt) { options.add_option("", opt); });
@@ -121,7 +176,7 @@ void genBlockEvents() {
     for (Id to = 0; to < nodes.size(); to++) {
       Id from = timeSpent[to].first;
       uint64_t dly = timeSpent[to].second;
-      blockEvents.push_back(new BlockEvent(blockTime + dly, from, to, block));
+      events.emplace_back(true, blockTime + dly, from, to, block->number);
     }
     blockMu.unlock();
   }
@@ -149,7 +204,7 @@ void genTxEvents() {
     for (Id to = 0; to < nodes.size(); to++) {
       Id from = timeSpent[to].first;
       uint64_t dly = timeSpent[to].second;
-      txEvents.push_back(new TxEvent(txTime + dly, from, to, tx));
+      events.emplace_back(false, txTime + dly, from, to, tx >> 32);
     }
     txMu.unlock();
   }
@@ -165,37 +220,26 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
   for (auto &node : nodes)
     for (auto peer : global.nodes[node->id]->peers)
       node->addPeer(nodes[peer]);
+  events.reserve(blocks.size() * nodes.size() + txs.size() * nodes.size());
   preGenBlocks(simTime, 12000, 15000, nodes.size());
-  blockEvents.reserve(blocks.size() * nodes.size());
   std::vector<std::thread> genBlockThreads(PARALLEL);
   for (int i = 0; i < PARALLEL; i++) {
     genBlockThreads[i] = std::thread(genBlockEvents);
   }
   for (std::thread &genBlockThread : genBlockThreads)
     genBlockThread.join();
-  std::sort(blockEvents.begin(), blockEvents.end(),
-            [](BlockEvent *e1, BlockEvent *e2) { return e1->timestamp < e2->timestamp; });
   preGenTxs(blocks, global.minTx, global.maxTx, prefill, nodes.size());
-  txEvents.reserve(txs.size() * nodes.size());
   std::vector<std::thread> genTxThreads(PARALLEL);
   for (int i = 0; i < PARALLEL; i++) {
     genTxThreads[i] = std::thread(genTxEvents);
   }
   for (std::thread &genTxThread : genTxThreads)
     genTxThread.join();
-  std::sort(txEvents.begin(), txEvents.end(), [](TxEvent *e1, TxEvent *e2) { return e1->timestamp < e2->timestamp; });
+  std::sort(events.begin(), events.end(), [](Event &e1, Event &e2) { return std::get<1>(e1) < std::get<1>(e2); });
   for (auto &node : nodes)
     node->setTxNum(txs.size());
-  int curTx = 0;
-  for (BlockEvent *blockEvent : blockEvents) {
-    uint64_t curTime = blockEvent->timestamp;
-    while (curTx < txEvents.size() && txEvents[curTx]->timestamp < curTime) {
-      txEvents[curTx]->process(nodes);
-      curTx++;
-    }
-    blockEvent->process(nodes);
-    if (verbosity)
-      std::cout << blockEvent->toString() << std::endl;
+  for (Event &event : events) {
+    process(event);
   }
   outputTxs("txs.csv");
   outputBlocks("blocks.csv");
