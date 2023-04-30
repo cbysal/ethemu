@@ -1,5 +1,4 @@
 #include <atomic>
-#include <boost/sort/block_indirect_sort/block_indirect_sort.hpp>
 #include <csignal>
 #include <iostream>
 #include <mutex>
@@ -78,6 +77,29 @@ std::mutex eventMu;
 std::vector<size_t> rootEvents;
 std::unordered_map<size_t, std::vector<size_t>> eventsTree;
 BS::thread_pool pool(PARALLEL);
+
+bool eventCmp(const Event &e1, const Event &e2) {
+  if (std::get<1>(e1) != std::get<1>(e2))
+    return std::get<1>(e1) < std::get<1>(e2);
+  return std::get<3>(e1) < std::get<3>(e2);
+}
+
+void merge(const std::vector<Event> &newEvents) {
+  int i1 = events.size() - 1, i2 = newEvents.size() - 1;
+  events.resize(events.size() + newEvents.size());
+  for (int i = events.size() - 1; i >= 0; i--) {
+    if (i1 >= 0 && i2 >= 0) {
+      if (eventCmp(events[i1], newEvents[i2])) {
+        events[i] = newEvents[i2--];
+      } else {
+        events[i] = events[i1--];
+      }
+    } else if (i1 < 0) {
+      std::copy(newEvents.begin(), newEvents.begin() + i2, events.begin());
+      break;
+    }
+  }
+}
 
 void processBlockEvent(uint64_t timestamp, Id from, Id to, Hash hash) {
   Block *block = blocks[hash].second;
@@ -184,25 +206,20 @@ void genBlockEvents() {
       delays.push_back(delay);
     }
     std::vector<std::pair<uint16_t, uint64_t>> timeSpent = dijkstra(delays, block->coinbase);
+    for (Id to = 0; to < nodes.size(); to++) {
+      Id from = timeSpent[to].first;
+      uint64_t dly = timeSpent[to].second;
+      localEvents.emplace_back(true, blockTime + dly, from, to, block->number);
+    }
+    std::sort(localEvents.begin(), localEvents.end(), eventCmp);
     if (eventMu.try_lock()) {
-      events.insert(events.end(), localEvents.begin(), localEvents.end());
+      merge(localEvents);
       localEvents.clear();
-      for (Id to = 0; to < nodes.size(); to++) {
-        Id from = timeSpent[to].first;
-        uint64_t dly = timeSpent[to].second;
-        events.emplace_back(true, blockTime + dly, from, to, block->number);
-      }
       eventMu.unlock();
-    } else {
-      for (Id to = 0; to < nodes.size(); to++) {
-        Id from = timeSpent[to].first;
-        uint64_t dly = timeSpent[to].second;
-        localEvents.emplace_back(true, blockTime + dly, from, to, block->number);
-      }
     }
   }
   eventMu.lock();
-  events.insert(events.end(), localEvents.begin(), localEvents.end());
+  merge(localEvents);
   eventMu.unlock();
 }
 
@@ -225,25 +242,19 @@ void genTxEvents() {
         delay[j] = {node->peerList[j], (global.minDelay + dre() % (global.maxDelay - global.minDelay)) * 3};
     }
     std::vector<std::pair<uint16_t, uint64_t>> timeSpent = dijkstra(delays, (Id)(tx >> 16));
+    for (Id to = 0; to < nodes.size(); to++) {
+      Id from = timeSpent[to].first;
+      uint64_t dly = timeSpent[to].second;
+      localEvents.emplace_back(false, txTime + dly, from, to, tx >> 32);
+    }
     if (eventMu.try_lock()) {
-      events.insert(events.end(), localEvents.begin(), localEvents.end());
+      merge(localEvents);
       localEvents.clear();
-      for (Id to = 0; to < nodes.size(); to++) {
-        Id from = timeSpent[to].first;
-        uint64_t dly = timeSpent[to].second;
-        events.emplace_back(false, txTime + dly, from, to, tx >> 32);
-      }
       eventMu.unlock();
-    } else {
-      for (Id to = 0; to < nodes.size(); to++) {
-        Id from = timeSpent[to].first;
-        uint64_t dly = timeSpent[to].second;
-        localEvents.emplace_back(false, txTime + dly, from, to, tx >> 32);
-      }
     }
   }
   eventMu.lock();
-  events.insert(events.end(), localEvents.begin(), localEvents.end());
+  merge(localEvents);
   eventMu.unlock();
 }
 
@@ -293,14 +304,6 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
     });
   }
   pool.wait_for_tasks();
-  boost::sort::block_indirect_sort(
-      events.begin(), events.end(),
-      [](const Event &e1, const Event &e2) {
-        if (std::get<1>(e1) != std::get<1>(e2))
-          return std::get<1>(e1) < std::get<1>(e2);
-        return std::get<3>(e1) < std::get<3>(e2);
-      },
-      16);
   for (auto &node : nodes)
     node->setTxNum(txs.size());
   genEventTree();
