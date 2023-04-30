@@ -1,10 +1,12 @@
 #include <atomic>
+#include <boost/sort/block_indirect_sort/block_indirect_sort.hpp>
 #include <csignal>
 #include <iostream>
 #include <mutex>
 #include <random>
 #include <thread>
 
+#include "BS_thread_pool.hpp"
 #include "common/math.h"
 #include "core/types/transaction.h"
 #include "cxxopts.hpp"
@@ -70,10 +72,12 @@ typedef std::tuple<bool, uint64_t, Id, Id, Hash> Event;
 const int PARALLEL = 16;
 std::vector<Node *> nodes;
 std::vector<Event> events;
-std::atomic_int blockEventId = 0;
-std::mutex blockMu;
+std::atomic_int blockEventId = 1;
 std::atomic_int txEventId = 0;
-std::mutex txMu;
+std::mutex eventMu;
+std::vector<size_t> rootEvents;
+std::unordered_map<size_t, std::vector<size_t>> eventsTree;
+BS::thread_pool pool(PARALLEL);
 
 void processBlockEvent(uint64_t timestamp, Id from, Id to, Hash hash) {
   Block *block = blocks[hash].second;
@@ -117,16 +121,22 @@ void processTxEvent(uint64_t timestamp, Id from, Id to, Hash hash) {
   }
 }
 
-void process(const Event &event) {
+void process(int curId) {
   bool isBlock;
   uint64_t timestamp;
   Id from, to;
   Hash hash;
-  std::tie(isBlock, timestamp, from, to, hash) = event;
-  if (isBlock) {
-    processBlockEvent(timestamp, from, to, hash);
-  } else {
-    processTxEvent(timestamp, from, to, hash);
+  while (true) {
+    std::tie(isBlock, timestamp, from, to, hash) = events[curId];
+    if (isBlock) {
+      processBlockEvent(timestamp, from, to, hash);
+    } else {
+      processTxEvent(timestamp, from, to, hash);
+    }
+    if (eventsTree.find(curId) == eventsTree.end()) {
+      break;
+    }
+    curId = eventsTree[curId][0];
   }
 }
 
@@ -156,35 +166,50 @@ int main(int argc, char *argv[]) {
 void genBlockEvents() {
   std::random_device rd;
   std::default_random_engine dre(rd());
+  std::vector<Event> localEvents;
+  std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays(nodes.size());
   int curId;
   while ((curId = blockEventId++) < blocks.size()) {
     auto &[blockTime, block] = blocks[curId];
-    std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays;
-    delays.reserve(nodes.size());
-    for (Node *node : nodes) {
-      std::vector<std::pair<uint16_t, uint64_t>> delay(node->peerList.size());
+    for (int i = 0; i < nodes.size(); i++) {
+      Node *node = nodes[i];
+      std::vector<std::pair<uint16_t, uint64_t>> &delay = delays[i];
+      delay.resize(node->peerList.size());
       int n = std::sqrt(node->peerList.size());
-      for (int i = 0; i < n; i++)
-        delay[i] = {node->peerList[i], global.minDelay + dre() % (global.maxDelay - global.minDelay)};
-      for (int i = n; i < node->peerList.size(); i++)
-        delay[i] = {node->peerList[i],
+      for (int j = 0; j < n; j++)
+        delay[j] = {node->peerList[j], global.minDelay + dre() % (global.maxDelay - global.minDelay)};
+      for (int j = n; j < node->peerList.size(); j++)
+        delay[j] = {node->peerList[j],
                     (global.minDelay + dre() % (global.maxDelay - global.minDelay)) * 5 + dre() % 500};
       delays.push_back(delay);
     }
     std::vector<std::pair<uint16_t, uint64_t>> timeSpent = dijkstra(delays, block->coinbase);
-    blockMu.lock();
-    for (Id to = 0; to < nodes.size(); to++) {
-      Id from = timeSpent[to].first;
-      uint64_t dly = timeSpent[to].second;
-      events.emplace_back(true, blockTime + dly, from, to, block->number);
+    if (eventMu.try_lock()) {
+      events.insert(events.end(), localEvents.begin(), localEvents.end());
+      localEvents.clear();
+      for (Id to = 0; to < nodes.size(); to++) {
+        Id from = timeSpent[to].first;
+        uint64_t dly = timeSpent[to].second;
+        events.emplace_back(true, blockTime + dly, from, to, block->number);
+      }
+      eventMu.unlock();
+    } else {
+      for (Id to = 0; to < nodes.size(); to++) {
+        Id from = timeSpent[to].first;
+        uint64_t dly = timeSpent[to].second;
+        localEvents.emplace_back(true, blockTime + dly, from, to, block->number);
+      }
     }
-    blockMu.unlock();
   }
+  eventMu.lock();
+  events.insert(events.end(), localEvents.begin(), localEvents.end());
+  eventMu.unlock();
 }
 
 void genTxEvents() {
   std::random_device rd;
   std::default_random_engine dre(rd());
+  std::vector<Event> localEvents;
   std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays(nodes.size());
   int curId;
   while ((curId = txEventId++) < txs.size()) {
@@ -200,13 +225,48 @@ void genTxEvents() {
         delay[j] = {node->peerList[j], (global.minDelay + dre() % (global.maxDelay - global.minDelay)) * 3};
     }
     std::vector<std::pair<uint16_t, uint64_t>> timeSpent = dijkstra(delays, (Id)(tx >> 16));
-    txMu.lock();
-    for (Id to = 0; to < nodes.size(); to++) {
-      Id from = timeSpent[to].first;
-      uint64_t dly = timeSpent[to].second;
-      events.emplace_back(false, txTime + dly, from, to, tx >> 32);
+    if (eventMu.try_lock()) {
+      events.insert(events.end(), localEvents.begin(), localEvents.end());
+      localEvents.clear();
+      for (Id to = 0; to < nodes.size(); to++) {
+        Id from = timeSpent[to].first;
+        uint64_t dly = timeSpent[to].second;
+        events.emplace_back(false, txTime + dly, from, to, tx >> 32);
+      }
+      eventMu.unlock();
+    } else {
+      for (Id to = 0; to < nodes.size(); to++) {
+        Id from = timeSpent[to].first;
+        uint64_t dly = timeSpent[to].second;
+        localEvents.emplace_back(false, txTime + dly, from, to, tx >> 32);
+      }
     }
-    txMu.unlock();
+  }
+  eventMu.lock();
+  events.insert(events.end(), localEvents.begin(), localEvents.end());
+  eventMu.unlock();
+}
+
+void genEventTree() {
+  std::vector<size_t> blockEventId(blocks.size());
+  std::vector<size_t> lastEventId(nodes.size());
+  for (size_t i = 0; i < events.size(); i++) {
+    bool isBlock;
+    uint64_t timestamp;
+    Id from, to;
+    Hash hash;
+    std::tie(isBlock, timestamp, from, to, hash) = events[i];
+    if (isBlock) {
+      if (from == to) {
+        rootEvents.push_back(i);
+        blockEventId[hash] = i;
+      } else {
+        eventsTree[blockEventId[hash]].push_back(i);
+      }
+    } else {
+      eventsTree[lastEventId[to]].push_back(i);
+    }
+    lastEventId[to] = i;
   }
 }
 
@@ -222,24 +282,34 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
       node->addPeer(nodes[peer]);
   events.reserve(blocks.size() * nodes.size() + txs.size() * nodes.size());
   preGenBlocks(simTime, 12000, 15000, nodes.size());
-  std::vector<std::thread> genBlockThreads(PARALLEL);
-  for (int i = 0; i < PARALLEL; i++) {
-    genBlockThreads[i] = std::thread(genBlockEvents);
-  }
-  for (std::thread &genBlockThread : genBlockThreads)
-    genBlockThread.join();
   preGenTxs(blocks, global.minTx, global.maxTx, prefill, nodes.size());
-  std::vector<std::thread> genTxThreads(PARALLEL);
-  for (int i = 0; i < PARALLEL; i++) {
-    genTxThreads[i] = std::thread(genTxEvents);
+  for (Id i = 0; i < nodes.size(); i++) {
+    events.emplace_back(true, 0, 0, i, 0);
   }
-  for (std::thread &genTxThread : genTxThreads)
-    genTxThread.join();
-  std::sort(events.begin(), events.end(), [](Event &e1, Event &e2) { return std::get<1>(e1) < std::get<1>(e2); });
+  for (int i = 0; i < PARALLEL; i++) {
+    pool.submit([] {
+      genBlockEvents();
+      genTxEvents();
+    });
+  }
+  pool.wait_for_tasks();
+  boost::sort::block_indirect_sort(
+      events.begin(), events.end(),
+      [](const Event &e1, const Event &e2) {
+        if (std::get<1>(e1) != std::get<1>(e2))
+          return std::get<1>(e1) < std::get<1>(e2);
+        return std::get<3>(e1) < std::get<3>(e2);
+      },
+      16);
   for (auto &node : nodes)
     node->setTxNum(txs.size());
-  for (Event &event : events) {
-    process(event);
+  genEventTree();
+  for (size_t rootEvent : rootEvents) {
+    process(rootEvent);
+    for (int nextEvent : eventsTree[rootEvent]) {
+      pool.submit([](int nextEvent) { process(nextEvent); }, nextEvent);
+    }
+    pool.wait_for_tasks();
   }
   outputTxs("txs.csv");
   outputBlocks("blocks.csv");
