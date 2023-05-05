@@ -1,5 +1,5 @@
 #include <filesystem>
-#include <memory>
+#include <random>
 #include <unordered_set>
 
 #include "cxxopts.hpp"
@@ -7,36 +7,27 @@
 #include "emu/types.h"
 #include "ethemu.h"
 
-void setId(std::vector<std::unique_ptr<EmuNode>> &nodes) {
+void setId(std::vector<EmuNode> &nodes) {
   for (int i = 0; i < nodes.size(); i++)
-    nodes[i]->id = i;
+    nodes[i].id = i;
 }
 
-void setMiners(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<EmuNode>> &nodes) {
-  int num = options["miners"].as<int>();
-  if (nodes.size() <= num) {
-    for (auto &node : nodes)
-      node->isMiner = true;
-    return;
-  }
-  std::unordered_set<int> miners;
-  srand(time(nullptr));
-  while (miners.size() < num)
-    miners.insert(std::rand() % nodes.size());
-  for (int i = 0; i < nodes.size(); i++)
-    nodes[i]->isMiner = miners.count(i);
-}
-
-void setPeers(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<EmuNode>> &nodes) {
+void setPeers(const cxxopts::ParseResult &options, std::vector<EmuNode> &nodes, std::default_random_engine &dre) {
   double density = (double)options["peers"].as<int>() / (nodes.size() - 1);
+  int minDelay = options["delay.min"].as<int>();
+  int maxDelay = options["delay.max"].as<int>();
+  int minBw = options["bw.min"].as<int>();
+  int maxBw = options["bw.max"].as<int>();
   int maxDist = nodes.size() / 2;
   for (int i = 0; i < nodes.size(); i++) {
     for (int j = i + 1; j < nodes.size(); j++) {
+      int delay = minDelay + dre() % (maxDelay - minDelay);
+      int bw = minBw + dre() % (maxBw - minBw);
       int dis = abs(i - j);
       int theta = density >= (double)std::min<int>(dis, nodes.size() - dis) / maxDist;
-      if (rand() % 100 / 100.0 < 0.25 * density + 0.75 * theta) {
-        nodes[i]->peers.push_back(j);
-        nodes[j]->peers.push_back(i);
+      if (dre() % 100 / 100.0 < 0.25 * density + 0.75 * theta) {
+        nodes[i].peers.emplace_back(j, delay, bw);
+        nodes[j].peers.emplace_back(i, delay, bw);
       }
     }
   }
@@ -48,20 +39,20 @@ void gen(const cxxopts::ParseResult &options) {
     std::filesystem::remove_all(dataDir);
   }
   std::filesystem::create_directories(dataDir);
+  std::random_device rd;
+  std::default_random_engine dre(rd());
   auto num = options["nodes"].as<int>();
-  std::vector<std::unique_ptr<EmuNode>> nodes(num);
-  for (int i = 0; i < num; i++) {
-    nodes[i] = std::make_unique<EmuNode>();
-  }
+  std::vector<EmuNode> nodes(num);
   setId(nodes);
-  setMiners(options, nodes);
-  setPeers(options, nodes);
-  global.period = options["block.time"].as<int>();
+  setPeers(options, nodes, dre);
+  global.blockTime = options["block.time"].as<int>();
   global.minDelay = options["delay.min"].as<int>();
   global.maxDelay = options["delay.max"].as<int>();
   global.minTx = options["tx.min"].as<int>();
   global.maxTx = options["tx.max"].as<int>();
+  global.minBlockSize = options["block.min"].as<int>();
+  global.maxBlockSize = options["block.max"].as<int>();
   for (auto &node : nodes)
-    global.nodes[node->id] = std::move(node);
+    global.nodes[node.id] = std::move(node);
   storeConfig(dataDir);
 }

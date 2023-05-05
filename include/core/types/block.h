@@ -5,19 +5,20 @@
 
 #include "core/types/transaction.h"
 
-void preGenBlocks(uint64_t simTime, uint64_t minBlockInterval, uint64_t maxBlockInterval, int nodeNum);
+void genBlocks(uint64_t simTime, int nodeNum);
 
 class Block {
 public:
   uint32_t number;
   Id coinbase;
+  uint16_t size;
   std::vector<Tx> txs;
 
 private:
   Block(){};
 
 public:
-  Block(const uint32_t number, Id coinbase);
+  Block(const uint32_t number, Id coinbase, uint16_t size);
 
   void setTxs(const std::vector<Tx> &);
   Hash hash() const;

@@ -22,20 +22,25 @@ Option datadirOpt("datadir", "Data directory for the databases and keystore", cx
 Option nodesOpt("nodes", "Number of emulated nodes", cxxopts::value<int>()->default_value("100"));
 Option minersOption("miners", "Number of emulated miners", cxxopts::value<int>()->default_value("20"));
 Option peersOpt("peers", "Average peer num of all nodes", cxxopts::value<int>()->default_value("20"));
-Option delayMinOpt("delay.min", "Minimum delay between peers", cxxopts::value<int>()->default_value("500"));
-Option delayMaxOpt("delay.max", "Maximum delay between peers", cxxopts::value<int>()->default_value("1000"));
+Option delayMinOpt("delay.min", "Minimum delay between peers", cxxopts::value<int>()->default_value("40"));
+Option delayMaxOpt("delay.max", "Maximum delay between peers", cxxopts::value<int>()->default_value("80"));
+Option bwMinOpt("bw.min", "Minimum bandwidth between peers", cxxopts::value<int>()->default_value("2048"));
+Option bwMaxOpt("bw.max", "Maximum bandwidth between peers", cxxopts::value<int>()->default_value("4096"));
+Option minBlockOpt("block.min", "Minimum size of a block", cxxopts::value<int>()->default_value("60"));
+Option maxBlockOpt("block.max", "Maximum size of a block", cxxopts::value<int>()->default_value("120"));
 Option txMinOpt("tx.min", "Restrict the minimum transaction num in a block",
                 cxxopts::value<int>()->default_value("150"));
 Option txMaxOpt("tx.max", "Restrict the maximum transaction num in a block",
                 cxxopts::value<int>()->default_value("160"));
-Option blockTimeOpt("block.time", "Interval of consensus for blocks", cxxopts::value<int>()->default_value("15000"));
+Option blockTimeOpt("block.time", "Interval of consensus for blocks", cxxopts::value<int>()->default_value("12000"));
 Option prefillOpt("prefill", "Fill transaction pool with transactions before emulation",
                   cxxopts::value<int>()->default_value("0"));
 Option simTimeOpt("sim.time", "Time limit of the simulation", cxxopts::value<int>()->default_value("1000000"));
 Option verbosityOpt("verbosity", "Show all outputs if it is on", cxxopts::value<bool>());
 
-std::vector<Option> opts = {datadirOpt, nodesOpt, minersOption, peersOpt,   delayMinOpt, delayMaxOpt,
-                            txMinOpt,   txMaxOpt, blockTimeOpt, simTimeOpt, prefillOpt,  verbosityOpt};
+std::vector<Option> opts = {datadirOpt,   nodesOpt,   minersOption, peersOpt,    delayMinOpt, delayMaxOpt,
+                            bwMinOpt,     bwMaxOpt,   minBlockOpt,  maxBlockOpt, txMinOpt,    txMaxOpt,
+                            blockTimeOpt, simTimeOpt, prefillOpt,   verbosityOpt};
 
 std::vector<uint64_t> dijkstra(const std::vector<std::vector<std::pair<uint16_t, uint64_t>>> &graph, Id from) {
   std::priority_queue<std::pair<uint64_t, uint16_t>, std::vector<std::pair<uint64_t, uint16_t>>, std::greater<>> pq;
@@ -219,13 +224,16 @@ void genBlockEvents() {
     for (int i = 0; i < nodes.size(); i++) {
       Node *node = nodes[i];
       std::vector<std::pair<uint16_t, uint64_t>> &delay = delays[i];
-      delay.resize(node->peerList.size());
-      int n = std::sqrt(node->peerList.size());
-      for (int j = 0; j < n; j++)
-        delay[j] = {node->peerList[j], global.minDelay + dre() % (global.maxDelay - global.minDelay)};
-      for (int j = n; j < node->peerList.size(); j++)
-        delay[j] = {node->peerList[j],
-                    (global.minDelay + dre() % (global.maxDelay - global.minDelay)) * 5 + dre() % 500};
+      delay.resize(node->peers.size());
+      int n = std::sqrt(node->peers.size());
+      for (int j = 0; j < n; j++) {
+        const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
+        delay[j] = {std::get<0>(peer), std::get<1>(peer) + block->size * 1024 / std::get<2>(peer)};
+      }
+      for (int j = n; j < node->peers.size(); j++) {
+        const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
+        delay[j] = {std::get<0>(peer), std::get<1>(peer) * 5 + block->size * 1024 / std::get<2>(peer) + dre() % 500};
+      }
       delays.push_back(delay);
     }
     std::vector<uint64_t> timeSpent = dijkstra(delays, block->coinbase);
@@ -249,8 +257,6 @@ void genBlockEvents() {
 }
 
 void genTxEvents() {
-  std::random_device rd;
-  std::default_random_engine dre(rd());
   std::vector<Event> localEvents;
   std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays(nodes.size());
   int curId;
@@ -259,12 +265,16 @@ void genTxEvents() {
     for (Id i = 0; i < nodes.size(); i++) {
       Node *node = nodes[i];
       std::vector<std::pair<uint16_t, uint64_t>> &delay = delays[i];
-      delay.resize(node->peerList.size());
+      delay.resize(node->peers.size());
       int n = std::sqrt(delay.size());
-      for (int j = 0; j < n; j++)
-        delay[j] = {node->peerList[j], global.minDelay + dre() % (global.maxDelay - global.minDelay)};
-      for (int j = n; j < delay.size(); j++)
-        delay[j] = {node->peerList[j], (global.minDelay + dre() % (global.maxDelay - global.minDelay)) * 3};
+      for (int j = 0; j < n; j++) {
+        const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
+        delay[j] = {std::get<0>(peer), std::get<1>(peer)};
+      }
+      for (int j = n; j < delay.size(); j++) {
+        const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
+        delay[j] = {std::get<0>(peer), std::get<1>(peer) * 3};
+      }
     }
     std::vector<uint64_t> timeSpent = dijkstra(delays, (Id)(tx >> 16));
     for (Id id = 0; id < nodes.size(); id++) {
@@ -309,16 +319,18 @@ void genEventTree() {
 void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool verbosity) {
   loadConfig(dataDir);
   for (int i = 0; i < global.nodes.size(); i++) {
-    const std::unique_ptr<EmuNode> &emuNode = global.nodes[i];
-    Node *node = new Node(emuNode->id);
+    const EmuNode &emuNode = global.nodes[i];
+    Node *node = new Node(emuNode.id);
     nodes.push_back(node);
   }
-  for (auto &node : nodes)
-    for (auto peer : global.nodes[node->id]->peers)
-      node->addPeer(nodes[peer]);
+  for (auto &node : nodes) {
+    for (const auto &peer : global.nodes[node->id].peers) {
+      node->addPeer(peer);
+    }
+  }
   events.reserve(blocks.size() * nodes.size() + txs.size() * nodes.size());
-  preGenBlocks(simTime, 12000, 15000, nodes.size());
-  preGenTxs(blocks, global.minTx, global.maxTx, prefill, nodes.size());
+  genBlocks(simTime, nodes.size());
+  genTxs(blocks, global.minTx, global.maxTx, prefill, nodes.size());
   for (Id i = 0; i < nodes.size(); i++) {
     if (i == 0) {
       events.emplace_back(0, MineEvent, i, 0);

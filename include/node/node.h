@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -13,7 +12,7 @@ struct Node {
   Id id;
   uint64_t current;
   TxPool *txPool;
-  std::vector<Id> peerList;
+  std::vector<std::tuple<Id, uint16_t, uint16_t>> peers;
 
   std::queue<Tx> resentTxs;
 
@@ -25,7 +24,7 @@ struct Node {
   ~Node() { delete txPool; }
 
   void setTxNum(int txNum) { txPool = new TxPool(txNum); }
-  void addPeer(Node *node) { peerList.push_back(node->id); }
+  void addPeer(const std::tuple<Id, uint16_t, uint16_t> &peer) { peers.push_back(peer); }
   void insertBlock(Block *block) {
     current = block->number;
     txPool->notifyBlockTxs(block->txs);

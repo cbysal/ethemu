@@ -10,16 +10,14 @@ using Id = uint16_t;
 
 struct EmuNode {
   Id id;
-  bool isMiner;
-  std::vector<Id> peers;
+  std::vector<std::tuple<Id, uint16_t, uint16_t>> peers;
 
   json toJson() const {
     json data;
     data["id"] = id;
-    data["isMiner"] = isMiner;
     json::array_t peersJson;
-    for (auto peer : peers)
-      peersJson.push_back(peer);
+    for (const auto &peer : peers)
+      peersJson.emplace_back(peer);
     data["peers"] = peersJson;
     return data;
   }
