@@ -15,7 +15,7 @@ struct Node {
   TxPool *txPool;
   std::vector<Id> peerList;
 
-  std::queue<std::tuple<Id, Id, Tx>> resentTxs;
+  std::queue<Tx> resentTxs;
 
   Node(Id id) {
     this->id = id;

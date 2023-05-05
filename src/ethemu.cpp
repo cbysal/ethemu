@@ -42,24 +42,19 @@ std::vector<Option> opts = {datadirOpt, nodesOpt, minersOption, peerMinOpt, peer
 
 std::vector<std::pair<uint16_t, uint64_t>>
 dijkstra(const std::vector<std::vector<std::pair<uint16_t, uint64_t>>> &graph, Id from) {
-  std::vector<bool> visited(graph.size(), false);
-  std::priority_queue<std::pair<uint64_t, uint16_t>, std::vector<std::pair<uint64_t, uint16_t>>,
-                      std::greater<std::pair<uint64_t, uint16_t>>>
-      pq;
+  std::priority_queue<std::pair<uint64_t, uint16_t>, std::vector<std::pair<uint64_t, uint16_t>>, std::greater<>> pq;
   std::vector<std::pair<uint16_t, uint64_t>> result(graph.size(), {UINT16_MAX, UINT64_MAX});
   result[from] = {from, 0};
-  pq.push(std::make_pair(0, from));
+  pq.emplace(0, from);
   while (!pq.empty()) {
     Id from = pq.top().second;
     pq.pop();
-    if (visited[from])
-      continue;
-    visited[from] = true;
+    if (result[from].second == UINT64_MAX)
+      break;
     for (auto &[to, len] : graph[from]) {
       if (result[to].second > result[from].second + len) {
-        result[to].second = result[from].second + len;
-        result[to].first = from;
-        pq.push(std::make_pair(result[to].second, to));
+        result[to] = {from, result[from].second + len};
+        pq.emplace(result[to].second, to);
       }
     }
   }
@@ -84,18 +79,20 @@ bool eventCmp(const Event &e1, const Event &e2) {
   return std::get<3>(e1) < std::get<3>(e2);
 }
 
-void merge(const std::vector<Event> &newEvents) {
+void merge(std::vector<Event> &newEvents) {
   int i1 = events.size() - 1, i2 = newEvents.size() - 1;
   events.resize(events.size() + newEvents.size());
   for (int i = events.size() - 1; i >= 0; i--) {
     if (i1 >= 0 && i2 >= 0) {
       if (eventCmp(events[i1], newEvents[i2])) {
-        events[i] = newEvents[i2--];
+        events[i] = std::move(newEvents[i2--]);
       } else {
-        events[i] = events[i1--];
+        events[i] = std::move(events[i1--]);
       }
     } else if (i1 < 0) {
       std::copy(newEvents.begin(), newEvents.begin() + i2, events.begin());
+      break;
+    } else {
       break;
     }
   }
@@ -115,9 +112,8 @@ void processBlockEvent(uint64_t timestamp, Id from, Id to, Hash hash) {
     return;
   node->insertBlock(block);
   while (!node->resentTxs.empty()) {
-    const auto &[from, to, tx] = node->resentTxs.front();
+    Tx &tx = node->resentTxs.front();
     uint32_t txId = tx >> 32;
-    Node *node = nodes[to];
     if (node->txPool->contains(txId)) {
       node->resentTxs.pop();
       continue;
@@ -138,7 +134,7 @@ void processTxEvent(uint64_t timestamp, Id from, Id to, Hash hash) {
     return;
   bool isAdded = node->txPool->addTx(tx);
   if (!isAdded) {
-    node->resentTxs.emplace(from, to, tx);
+    node->resentTxs.push(tx);
     return;
   }
 }
