@@ -28,40 +28,18 @@ void setMiners(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<
 }
 
 void setPeers(const cxxopts::ParseResult &options, std::vector<std::unique_ptr<EmuNode>> &nodes) {
-  int minPeer = options["peer.min"].as<int>();
-  int maxPeer = options["peer.max"].as<int>();
-  if (nodes.size() <= minPeer) {
-    for (int i = 0; i < nodes.size(); i++)
-      for (int j = 0; j < nodes.size(); j++)
-        if (i != j)
-          nodes[i]->peers.push_back(j);
-    return;
+  double density = (double)options["peers"].as<int>() / (nodes.size() - 1);
+  int maxDist = nodes.size() / 2;
+  for (int i = 0; i < nodes.size(); i++) {
+    for (int j = i + 1; j < nodes.size(); j++) {
+      int dis = abs(i - j);
+      int theta = density >= (double)std::min<int>(dis, nodes.size() - dis) / maxDist;
+      if (rand() % 100 / 100.0 < 0.25 * density + 0.75 * theta) {
+        nodes[i]->peers.push_back(j);
+        nodes[j]->peers.push_back(i);
+      }
+    }
   }
-  std::vector<std::unordered_set<int>> peers(nodes.size());
-  bool toContinue;
-  do {
-    toContinue = false;
-
-    for (int i = 0; i < nodes.size(); i++) {
-      while (peers[i].size() < minPeer) {
-        int j = std::rand() % nodes.size();
-        if (i == j || peers[j].size() >= maxPeer)
-          continue;
-        peers[i].insert(j);
-        peers[j].insert(i);
-      }
-    }
-
-    for (const auto &node : peers) {
-      if (node.size() < minPeer || node.size() > maxPeer) {
-        toContinue = true;
-        break;
-      }
-    }
-  } while (toContinue);
-  for (int i = 0; i < nodes.size(); i++)
-    for (int j : peers[i])
-      nodes[i]->peers.push_back(nodes[j]->id);
 }
 
 void gen(const cxxopts::ParseResult &options) {

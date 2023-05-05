@@ -21,10 +21,7 @@ Options options("Ethemu");
 Option datadirOpt("datadir", "Data directory for the databases and keystore", cxxopts::value<std::string>());
 Option nodesOpt("nodes", "Number of emulated nodes", cxxopts::value<int>()->default_value("100"));
 Option minersOption("miners", "Number of emulated miners", cxxopts::value<int>()->default_value("20"));
-Option peerMinOpt("peer.min", "Restrict the minimum peer num for each node",
-                  cxxopts::value<int>()->default_value("20"));
-Option peerMaxOpt("peer.max", "Restrict the maximum peer num for each node",
-                  cxxopts::value<int>()->default_value("50"));
+Option peersOpt("peers", "Average peer num of all nodes", cxxopts::value<int>()->default_value("20"));
 Option delayMinOpt("delay.min", "Minimum delay between peers", cxxopts::value<int>()->default_value("500"));
 Option delayMaxOpt("delay.max", "Maximum delay between peers", cxxopts::value<int>()->default_value("1000"));
 Option txMinOpt("tx.min", "Restrict the minimum transaction num in a block",
@@ -37,8 +34,8 @@ Option prefillOpt("prefill", "Fill transaction pool with transactions before emu
 Option simTimeOpt("sim.time", "Time limit of the simulation", cxxopts::value<int>()->default_value("1000000"));
 Option verbosityOpt("verbosity", "Show all outputs if it is on", cxxopts::value<bool>());
 
-std::vector<Option> opts = {datadirOpt, nodesOpt, minersOption, peerMinOpt, peerMaxOpt, delayMinOpt, delayMaxOpt,
-                            txMinOpt,   txMaxOpt, blockTimeOpt, simTimeOpt, prefillOpt, verbosityOpt};
+std::vector<Option> opts = {datadirOpt, nodesOpt, minersOption, peersOpt,   delayMinOpt, delayMaxOpt,
+                            txMinOpt,   txMaxOpt, blockTimeOpt, simTimeOpt, prefillOpt,  verbosityOpt};
 
 std::vector<std::pair<uint16_t, uint64_t>>
 dijkstra(const std::vector<std::vector<std::pair<uint16_t, uint64_t>>> &graph, Id from) {
