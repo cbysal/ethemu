@@ -14,9 +14,8 @@ void genBlocks(uint64_t simTime, int nodeNum) {
   uint64_t curTime = global.blockTime;
   int blockNum = 1;
   do {
-    Id node = dre() % nodeNum;
     uint16_t size = global.minBlockSize + dre() % (global.maxBlockSize - global.minBlockSize);
-    blocks.emplace_back(curTime, new Block(blockNum++, node, size));
+    blocks.emplace_back(curTime, new Block(blockNum++, blockNum % nodeNum, size));
     curTime += global.blockTime;
   } while (curTime <= simTime);
 }
