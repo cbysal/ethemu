@@ -7,8 +7,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "bitset.h"
-
 using Id = uint16_t;
 using Tx = uint64_t;
 
@@ -19,106 +17,116 @@ const int globalQueue = 1024;
 
 class TxPool {
 private:
-  int pendingSize = 0;
-  int queuedSize = 0;
-
-  std::unordered_map<Id, std::priority_queue<Tx, std::vector<Tx>, std::greater<>>> pending;
-  std::unordered_map<Id, std::priority_queue<Tx, std::vector<Tx>, std::greater<>>> queued;
-
-  BitSet allTxs;
-
-  std::unordered_map<Id, uint16_t> noncer;
+  std::vector<Tx> pending;
+  std::vector<Tx> queued;
+  std::vector<uint16_t> pendingSizes;
+  std::vector<uint16_t> queuedSizes;
+  std::vector<uint16_t> noncer;
 
   void reorg() {
-    for (auto &[id, queuedTxs] : queued) {
-      while (!queuedTxs.empty() && (queuedTxs.top() & 0xffff) == noncer[id]) {
-        if (pendingSize >= globalSlots && pending[id].size() >= accountSlots)
-          break;
-        pending[id].push(queuedTxs.top());
-        pendingSize++;
-        queuedTxs.pop();
-        queuedSize--;
-        noncer[id]++;
+    std::vector<uint16_t> nonces = noncer;
+    for (Tx tx : pending) {
+      Id id = tx >> 16;
+      uint16_t nonce = tx;
+      nonces[id] = std::max<uint16_t>(nonces[id], nonce + 1);
+    }
+    std::vector<Tx> newPending;
+    std::vector<Tx> newQueued;
+    std::sort(queued.begin(), queued.end());
+    for (Tx tx : queued) {
+      Id id = tx >> 16;
+      uint16_t nonce = tx;
+      if (nonce != nonces[id]) {
+        newQueued.push_back(tx);
+        continue;
       }
+      if (pending.size() >= globalSlots && pendingSizes[id] >= accountSlots) {
+        newQueued.push_back(tx);
+        continue;
+      }
+      pending.push_back(tx);
+      pendingSizes[id]++;
+      queuedSizes[id]--;
+      nonces[id]++;
     }
-  }
-
-  void reorgSingle(Id id) {
-    auto &queuedTxs = queued[id];
-    while (!queuedTxs.empty() && (queuedTxs.top() & 0xffff) == noncer[id]) {
-      if (pendingSize >= globalSlots && pending[id].size() >= accountSlots)
-        break;
-      pending[id].push(queuedTxs.top());
-      pendingSize++;
-      queuedTxs.pop();
-      queuedSize--;
-      noncer[id]++;
-    }
+    queued = newQueued;
   }
 
 public:
-  TxPool(int txNum) { allTxs.resize(txNum); }
+  TxPool(int nodeNum) {
+    pendingSizes.resize(nodeNum);
+    queuedSizes.resize(nodeNum);
+    noncer.resize(nodeNum, 0);
+  }
 
   bool addTx(Tx tx) {
-    Id from = tx >> 16;
-    if (queuedSize >= globalQueue || queued[from].size() >= accountQueue)
+    Id id = tx >> 16;
+    if (queued.size() >= globalQueue || queuedSizes[id] >= accountQueue) {
+      reorg();
+    }
+    if (queued.size() >= globalQueue || queuedSizes[id] >= accountQueue)
       return false;
-    allTxs.set(tx >> 32);
-    queued[from].push(tx);
-    queuedSize++;
-    reorgSingle(from);
+    queued.push_back(tx);
+    queuedSizes[id]++;
     return true;
   }
 
   void notifyBlockTxs(const std::vector<Tx> &txs) {
-    std::unordered_map<Id, uint16_t> maxNonces;
+    std::sort(pending.begin(), pending.end());
+    std::sort(queued.begin(), queued.end());
     for (Tx tx : txs) {
       Id id = tx >> 16;
       uint16_t nonce = tx;
-      maxNonces[id] = std::max(maxNonces[id], nonce);
-      allTxs.set(tx >> 32);
+      noncer[id] = std::max<uint16_t>(noncer[id], nonce + 1);
     }
-    for (const auto &[id, newNonce] : maxNonces) {
-      auto &pendingTxs = pending[id];
-      auto &queuedTxs = queued[id];
-      while (!pendingTxs.empty() && (pendingTxs.top() & 0xffff) <= newNonce) {
-        pendingTxs.pop();
-        pendingSize--;
+    std::vector<Tx> newPending;
+    std::vector<Tx> newQueued;
+    for (Tx tx : pending) {
+      Id id = tx >> 16;
+      uint16_t nonce = tx;
+      if (nonce >= noncer[id]) {
+        newPending.push_back(tx);
+      } else {
+        pendingSizes[id]--;
       }
-      while (!queuedTxs.empty() && (queuedTxs.top() & 0xffff) <= newNonce) {
-        queuedTxs.pop();
-        queuedSize--;
-      }
-      noncer[id] = std::max<Id>(noncer[id], newNonce + 1);
     }
-    reorg();
+    for (Tx tx : queued) {
+      Id id = tx >> 16;
+      uint16_t nonce = tx;
+      if (nonce >= noncer[id]) {
+        newQueued.push_back(tx);
+      } else {
+        queuedSizes[id]--;
+      }
+    }
+    pending = newPending;
+    queued = newQueued;
   }
 
-  bool contains(uint32_t txId) { return allTxs[txId]; }
-
   std::vector<Tx> pollTxs() {
+    reorg();
+    std::sort(pending.begin(), pending.end());
     int num = 150 + rand() % 11;
-    std::unordered_set<Id> usedIds;
     std::vector<Tx> txs;
-    while (txs.size() < num && pendingSize > 0) {
-      for (auto &[_, pendingTxs] : pending) {
-        if (txs.size() >= num)
-          break;
-        if (pendingTxs.empty())
-          continue;
-        Tx tx = pendingTxs.top();
-        pendingTxs.pop();
+    std::vector<Tx> newPending;
+    for (Tx tx : pending) {
+      if (txs.size() >= num) {
+        newPending.push_back(tx);
+        continue;
+      }
+      Id id = tx >> 16;
+      uint16_t nonce = tx;
+      if (nonce == noncer[id]) {
         txs.push_back(tx);
-        pendingSize--;
-        Id id = tx >> 16;
-        usedIds.insert(id);
+        pendingSizes[id]--;
+        noncer[id]++;
+      } else {
+        newPending.push_back(tx);
       }
     }
-    for (Id id : usedIds) {
-      reorgSingle(id);
-    }
+    pending = newPending;
     return txs;
   }
 
-  int size() const { return pendingSize + queuedSize; }
+  int size() const { return pending.size() + queued.size(); }
 };

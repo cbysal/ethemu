@@ -23,7 +23,7 @@ struct Node {
 
   ~Node() { delete txPool; }
 
-  void setTxNum(int txNum) { txPool = new TxPool(txNum); }
+  void setTxPool(int nodeNum) { txPool = new TxPool(nodeNum); }
   void addPeer(const std::tuple<Id, uint16_t, uint16_t> &peer) { peers.push_back(peer); }
   void insertBlock(Block *block) {
     current = block->number;

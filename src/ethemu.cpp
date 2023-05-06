@@ -1,4 +1,5 @@
 #include <atomic>
+#include <boost/sort/block_indirect_sort/block_indirect_sort.hpp>
 #include <csignal>
 #include <iostream>
 #include <mutex>
@@ -73,44 +74,13 @@ typedef std::tuple<uint64_t, EventType, Id, Hash> Event;
 const int PARALLEL = 16;
 std::vector<Node *> nodes;
 std::vector<Event> events;
-std::atomic_int blockEventId = 1;
 std::atomic_int txEventId = 0;
 std::mutex eventMu;
-std::vector<size_t> rootEvents;
-std::unordered_map<size_t, std::vector<size_t>> eventsTree;
 BS::thread_pool pool(PARALLEL);
-
-bool eventCmp(const Event &e1, const Event &e2) {
-  if (std::get<0>(e1) != std::get<0>(e2))
-    return std::get<0>(e1) < std::get<0>(e2);
-  return std::get<1>(e1) < std::get<1>(e2);
-}
-
-void merge(std::vector<Event> &newEvents) {
-  int i1 = events.size() - 1, i2 = newEvents.size() - 1;
-  events.resize(events.size() + newEvents.size());
-  for (int i = events.size() - 1; i >= 0; i--) {
-    if (i1 >= 0 && i2 >= 0) {
-      if (eventCmp(events[i1], newEvents[i2])) {
-        events[i] = std::move(newEvents[i2--]);
-      } else {
-        events[i] = std::move(events[i1--]);
-      }
-    } else if (i1 < 0) {
-      std::copy(newEvents.begin(), newEvents.begin() + i2, events.begin());
-      break;
-    } else {
-      break;
-    }
-  }
-}
 
 void processTxEvent(Id id, Hash hash) {
   Tx tx = txs[hash].second;
-  uint32_t txId = tx >> 32;
   Node *node = nodes[id];
-  if (node->txPool->contains(txId))
-    return;
   bool isAdded = node->txPool->addTx(tx);
   if (!isAdded) {
     node->resentTxs.push(tx);
@@ -123,19 +93,14 @@ void processMineEvent(uint64_t timestamp, Id id, Hash hash) {
   Node *node = nodes[id];
   std::vector<Tx> txs = node->txPool->pollTxs();
   block->setTxs(txs);
-  std::cout << "New Block (Number: " << block->number << ", Hash: " << hashHex(block->hash())
-            << ", Coinbase: " << idToString(node->id) << ", Txs: " << block->txs.size() << ")" << std::endl;
-  std::cout << timestamp << " id " << idToString(node->id) << " txpool " << node->txPool->size() << std::endl;
+  std::cout << timestamp << " New Block (Number: " << block->number << ", Hash: " << hashHex(block->hash())
+            << ", Coinbase: " << idToString(node->id) << ", Txs: " << block->txs.size() << ") TxPool "
+            << node->txPool->size() << std::endl;
   if (block->number <= node->current)
     return;
   node->insertBlock(block);
   while (!node->resentTxs.empty()) {
     Tx &tx = node->resentTxs.front();
-    uint32_t txId = tx >> 32;
-    if (node->txPool->contains(txId)) {
-      node->resentTxs.pop();
-      continue;
-    }
     bool isAdded = node->txPool->addTx(tx);
     if (!isAdded) {
       break;
@@ -152,11 +117,6 @@ void processBlockEvent(Id id, Hash hash) {
   node->insertBlock(block);
   while (!node->resentTxs.empty()) {
     Tx &tx = node->resentTxs.front();
-    uint32_t txId = tx >> 32;
-    if (node->txPool->contains(txId)) {
-      node->resentTxs.pop();
-      continue;
-    }
     bool isAdded = node->txPool->addTx(tx);
     if (!isAdded) {
       break;
@@ -165,28 +125,33 @@ void processBlockEvent(Id id, Hash hash) {
   }
 }
 
-void process(int curId) {
+void process(const Event &event) {
   uint64_t timestamp;
   EventType type;
   Id id;
   Hash hash;
-  while (true) {
-    std::tie(timestamp, type, id, hash) = events[curId];
-    switch (type) {
-    case TxEvent:
-      processTxEvent(id, hash);
-      break;
-    case MineEvent:
-      processMineEvent(timestamp, id, hash);
-      break;
-    case BlockEvent:
-      processBlockEvent(id, hash);
-      break;
-    }
-    if (eventsTree.find(curId) == eventsTree.end()) {
-      break;
-    }
-    curId = eventsTree[curId][0];
+  std::tie(timestamp, type, id, hash) = event;
+  switch (type) {
+  case TxEvent:
+    processTxEvent(id, hash);
+    break;
+  case MineEvent:
+    processMineEvent(timestamp, id, hash);
+    break;
+  case BlockEvent:
+    processBlockEvent(id, hash);
+    break;
+  }
+}
+
+void process(int curId) {
+  const Event &event = events[curId];
+  process(event);
+}
+
+void process(const std::vector<Event> &events) {
+  for (const Event &event : events) {
+    process(event);
   }
 }
 
@@ -213,54 +178,37 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void genBlockEvents() {
-  std::random_device rd;
-  std::default_random_engine dre(rd());
-  std::vector<Event> localEvents;
+uint64_t genBlockEvents(Hash blockId, std::default_random_engine &dre) {
   std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays(nodes.size());
-  int curId;
-  while ((curId = blockEventId++) < blocks.size()) {
-    auto &[blockTime, block] = blocks[curId];
-    for (int i = 0; i < nodes.size(); i++) {
-      Node *node = nodes[i];
-      std::vector<std::pair<uint16_t, uint64_t>> &delay = delays[i];
-      delay.resize(node->peers.size());
-      int n = std::sqrt(node->peers.size());
-      for (int j = 0; j < n; j++) {
-        const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
-        delay[j] = {std::get<0>(peer), std::get<1>(peer) + block->size * 1024 / std::get<2>(peer)};
-      }
-      for (int j = n; j < node->peers.size(); j++) {
-        const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
-        delay[j] = {std::get<0>(peer), std::get<1>(peer) * 5 + block->size * 1024 / std::get<2>(peer) + dre() % 500};
-      }
-      delays.push_back(delay);
+  auto &[blockTime, block] = blocks[blockId];
+  for (int i = 0; i < nodes.size(); i++) {
+    Node *node = nodes[i];
+    std::vector<std::pair<uint16_t, uint64_t>> &delay = delays[i];
+    delay.resize(node->peers.size());
+    int n = std::sqrt(node->peers.size());
+    for (int j = 0; j < n; j++) {
+      const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
+      delay[j] = {std::get<0>(peer), std::get<1>(peer) + block->size * 1024 / std::get<2>(peer)};
     }
-    std::vector<uint64_t> timeSpent = dijkstra(delays, block->coinbase);
-    Id mineId = std::min_element(timeSpent.begin(), timeSpent.end()) - timeSpent.begin();
-    for (Id id = 0; id < nodes.size(); id++) {
-      if (id == mineId)
-        localEvents.emplace_back(blockTime + timeSpent[id], MineEvent, id, block->number);
-      else
-        localEvents.emplace_back(blockTime + timeSpent[id], BlockEvent, id, block->number);
-    }
-    std::sort(localEvents.begin(), localEvents.end(), eventCmp);
-    if (eventMu.try_lock()) {
-      merge(localEvents);
-      localEvents.clear();
-      eventMu.unlock();
+    for (int j = n; j < node->peers.size(); j++) {
+      const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
+      delay[j] = {std::get<0>(peer), std::get<1>(peer) * 5 + block->size * 1024 / std::get<2>(peer) + dre() % 500};
     }
   }
-  eventMu.lock();
-  merge(localEvents);
-  eventMu.unlock();
+  std::vector<uint64_t> timeSpent = dijkstra(delays, block->coinbase);
+  uint64_t maxTimestamp = blockTime + *std::max_element(timeSpent.begin(), timeSpent.end());
+  for (Id id = 0; id < nodes.size(); id++) {
+    if (id == block->coinbase)
+      events.emplace_back(blockTime + timeSpent[id], MineEvent, id, block->number);
+    else
+      events.emplace_back(blockTime + timeSpent[id], BlockEvent, id, block->number);
+  }
+  return maxTimestamp;
 }
 
-void genTxEvents() {
-  std::vector<Event> localEvents;
+void genTxEvents(Hash begin, Hash end) {
   std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays(nodes.size());
-  int curId;
-  while ((curId = txEventId++) < txs.size()) {
+  for (Hash curId = begin; curId < end; curId++) {
     auto &[txTime, tx] = txs[curId];
     for (Id i = 0; i < nodes.size(); i++) {
       Node *node = nodes[i];
@@ -277,43 +225,53 @@ void genTxEvents() {
       }
     }
     std::vector<uint64_t> timeSpent = dijkstra(delays, (Id)(tx >> 16));
+    eventMu.lock();
     for (Id id = 0; id < nodes.size(); id++) {
-      localEvents.emplace_back(txTime + timeSpent[id], TxEvent, id, tx >> 32);
+      events.emplace_back(txTime + timeSpent[id], TxEvent, id, tx >> 32);
     }
-    if (eventMu.try_lock()) {
-      merge(localEvents);
-      localEvents.clear();
-      eventMu.unlock();
-    }
+    eventMu.unlock();
   }
-  eventMu.lock();
-  merge(localEvents);
-  eventMu.unlock();
 }
 
-void genEventTree() {
-  std::vector<size_t> blockEventId(blocks.size());
-  std::vector<size_t> lastEventId(nodes.size());
-  for (size_t i = 0; i < events.size(); i++) {
+std::pair<Event, std::vector<std::vector<Event>>> genEventTree() {
+  uint8_t counter[nodes.size()];
+  std::memset(counter, 0, nodes.size() * sizeof(uint8_t));
+  Event mineEvent;
+  std::vector<std::vector<Event>> eventLists(nodes.size());
+  std::vector<Event> newEvents;
+  Id mineId = UINT16_MAX;
+  for (const Event &event : events) {
     uint64_t timestamp;
     EventType type;
     Id id;
     Hash hash;
-    std::tie(timestamp, type, id, hash) = events[i];
+    std::tie(timestamp, type, id, hash) = event;
     switch (type) {
     case TxEvent:
-      eventsTree[lastEventId[id]].push_back(i);
+      if (counter[id] < 2) {
+        eventLists[id].push_back(event);
+      } else {
+        newEvents.push_back(event);
+      }
       break;
     case MineEvent:
-      rootEvents.push_back(i);
-      blockEventId[hash] = i;
-      break;
     case BlockEvent:
-      eventsTree[blockEventId[hash]].push_back(i);
+      if (counter[id] < 1) {
+        eventLists[id].push_back(event);
+      } else {
+        newEvents.push_back(event);
+      }
+      if (type == MineEvent && mineId == UINT16_MAX) {
+        mineId = id;
+      }
+      counter[id]++;
       break;
     }
-    lastEventId[id] = i;
   }
+  mineEvent = eventLists[mineId].front();
+  eventLists[mineId].erase(eventLists[mineId].begin());
+  events = newEvents;
+  return {mineEvent, eventLists};
 }
 
 void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool verbosity) {
@@ -324,11 +282,11 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
     nodes.push_back(node);
   }
   for (auto &node : nodes) {
+    node->setTxPool(nodes.size());
     for (const auto &peer : global.nodes[node->id].peers) {
       node->addPeer(peer);
     }
   }
-  events.reserve(blocks.size() * nodes.size() + txs.size() * nodes.size());
   genBlocks(simTime, nodes.size());
   genTxs(blocks, global.minTx, global.maxTx, prefill, nodes.size());
   for (Id i = 0; i < nodes.size(); i++) {
@@ -338,23 +296,38 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
       events.emplace_back(0, BlockEvent, i, 0);
     }
   }
-  for (int i = 0; i < PARALLEL; i++) {
-    pool.submit([] {
-      genBlockEvents();
-      genTxEvents();
-    });
-  }
-  pool.wait_for_tasks();
-  for (auto &node : nodes)
-    node->setTxNum(txs.size());
-  genEventTree();
-  for (size_t rootEvent : rootEvents) {
-    process(rootEvent);
-    for (int nextEvent : eventsTree[rootEvent]) {
-      pool.submit([](int nextEvent) { process(nextEvent); }, nextEvent);
+  std::random_device rd;
+  std::default_random_engine dre(rd());
+  Hash curTx = 0;
+  for (Hash curBlock = 1; curBlock < blocks.size(); curBlock++) {
+    uint64_t safeBound = genBlockEvents(curBlock, dre);
+    int nextTx = std::upper_bound(txs.begin(), txs.end(), std::make_pair(safeBound, Tx(0))) - txs.begin();
+    int taskNum = nextTx - curTx;
+    if (taskNum < 16) {
+      genTxEvents(curTx, nextTx);
+    } else {
+      std::vector<Hash> sections;
+      sections.push_back(curTx);
+      for (int i = 1; i < PARALLEL; i++) {
+        sections.push_back(curTx + taskNum / PARALLEL * i);
+      }
+      sections.push_back(nextTx);
+      for (int i = 0; i < PARALLEL; i++) {
+        pool.submit([i, &sections] { genTxEvents(sections[i], sections[i + 1]); });
+      }
+      pool.wait_for_tasks();
+    }
+    curTx = nextTx;
+    boost::sort::block_indirect_sort(events.begin(), events.end(), 16);
+    std::pair<Event, std::vector<std::vector<Event>>> executableEvents = genEventTree();
+    process(executableEvents.first);
+    for (const std::vector<Event> &events : executableEvents.second) {
+      pool.submit([&events] { process(events); });
     }
     pool.wait_for_tasks();
   }
+  std::sort(events.begin(), events.end());
+  process(events);
   outputTxs("txs.csv");
   outputBlocks("blocks.csv");
   for (Node *node : nodes)

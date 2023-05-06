@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <cstdlib>
 #include <fstream>
 #include <random>
 #include <unordered_set>
@@ -20,7 +19,7 @@ void outputTxs(const std::string &file) {
 }
 
 void genTxs(std::vector<std::pair<uint64_t, Block *>> &blocks, uint64_t minTx, uint64_t maxTx, uint64_t prefill,
-               int nodeNum) {
+            int nodeNum) {
   std::random_device rd;
   std::default_random_engine dre(rd());
   std::vector<int> nonces;
