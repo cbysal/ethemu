@@ -1,6 +1,6 @@
-#include <atomic>
 #include <boost/sort/block_indirect_sort/block_indirect_sort.hpp>
 #include <csignal>
+#include <fstream>
 #include <iostream>
 #include <mutex>
 #include <random>
@@ -63,6 +63,10 @@ std::vector<uint64_t> dijkstra(const std::vector<std::vector<std::pair<uint16_t,
   return result;
 }
 
+const uint16_t MACHINE_WAIT_TX = 16;
+const uint16_t MACHINE_WAIT_BLOCK = 5;
+const uint32_t MACHINE_PROC = 500000;
+
 typedef uint16_t EventType;
 
 const EventType TxEvent = 0;
@@ -74,8 +78,10 @@ typedef std::tuple<uint64_t, EventType, Id, Hash> Event;
 const int PARALLEL = 16;
 std::vector<Node *> nodes;
 std::vector<Event> events;
-std::atomic_int txEventId = 0;
 std::mutex eventMu;
+std::vector<std::tuple<uint16_t, uint16_t, uint16_t>> txLog;
+std::vector<std::tuple<uint16_t, uint16_t, uint16_t>> blockLog;
+std::mutex txLogMu;
 BS::thread_pool pool(PARALLEL);
 
 void processTxEvent(Id id, Hash hash) {
@@ -185,17 +191,24 @@ uint64_t genBlockEvents(Hash blockId, std::default_random_engine &dre) {
     Node *node = nodes[i];
     std::vector<std::pair<uint16_t, uint64_t>> &delay = delays[i];
     delay.resize(node->peers.size());
-    int n = std::sqrt(node->peers.size());
-    for (int j = 0; j < n; j++) {
+    int left = std::sqrt(node->peers.size());
+    for (int j = 0; j < node->peers.size(); j++) {
       const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
-      delay[j] = {std::get<0>(peer), std::get<1>(peer) + block->size * 1024 / std::get<2>(peer)};
-    }
-    for (int j = n; j < node->peers.size(); j++) {
-      const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
-      delay[j] = {std::get<0>(peer), std::get<1>(peer) * 5 + block->size * 1024 / std::get<2>(peer) + dre() % 500};
+      if (dre() % (node->peers.size() - j) < left) {
+        delay[j] = {std::get<0>(peer), std::get<1>(peer) + uint64_t(block->size) * 1024 / std::get<2>(peer) +
+                                           MACHINE_WAIT_BLOCK + uint64_t(block->size) * 1024 / MACHINE_PROC};
+        left--;
+      } else {
+        delay[j] = {std::get<0>(peer), std::get<1>(peer) * 5 + uint64_t(block->size) * 1024 / std::get<2>(peer) +
+                                           dre() % 500 + MACHINE_WAIT_BLOCK +
+                                           uint64_t(block->size) * 1024 / MACHINE_PROC};
+      }
     }
   }
   std::vector<uint64_t> timeSpent = dijkstra(delays, block->coinbase);
+  std::vector<uint64_t> times = timeSpent;
+  std::sort(times.begin(), times.end());
+  blockLog.emplace_back(times[times.size() / 2], times[times.size() * 9 / 10], times.back());
   uint64_t maxTimestamp = blockTime + *std::max_element(timeSpent.begin(), timeSpent.end());
   for (Id id = 0; id < nodes.size(); id++) {
     if (id == block->coinbase)
@@ -217,14 +230,19 @@ void genTxEvents(Hash begin, Hash end) {
       int n = std::sqrt(delay.size());
       for (int j = 0; j < n; j++) {
         const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
-        delay[j] = {std::get<0>(peer), std::get<1>(peer)};
+        delay[j] = {std::get<0>(peer), std::get<1>(peer) + MACHINE_WAIT_TX};
       }
       for (int j = n; j < delay.size(); j++) {
         const std::tuple<Id, uint16_t, uint16_t> &peer = node->peers[j];
-        delay[j] = {std::get<0>(peer), std::get<1>(peer) * 3};
+        delay[j] = {std::get<0>(peer), std::get<1>(peer) * 3 + MACHINE_WAIT_TX};
       }
     }
     std::vector<uint64_t> timeSpent = dijkstra(delays, (Id)(tx >> 16));
+    std::vector<uint64_t> times = timeSpent;
+    std::sort(times.begin(), times.end());
+    txLogMu.lock();
+    txLog.emplace_back(times[times.size() / 2], times[times.size() * 9 / 10], times.back());
+    txLogMu.unlock();
     eventMu.lock();
     for (Id id = 0; id < nodes.size(); id++) {
       events.emplace_back(txTime + timeSpent[id], TxEvent, id, tx >> 32);
@@ -272,6 +290,24 @@ std::pair<Event, std::vector<std::vector<Event>>> genEventTree() {
   eventLists[mineId].erase(eventLists[mineId].begin());
   events = newEvents;
   return {mineEvent, eventLists};
+}
+
+void outputTxLog(const std::string &file) {
+  std::ofstream ofs(file);
+  ofs << "50%,90%,100%" << std::endl;
+  for (auto &[p50, p90, p100] : txLog) {
+    ofs << p50 << ',' << p90 << ',' << p100 << std::endl;
+  }
+  ofs.close();
+}
+
+void outputBlockLog(const std::string &file) {
+  std::ofstream ofs(file);
+  ofs << "50%,90%,100%" << std::endl;
+  for (auto &[p50, p90, p100] : blockLog) {
+    ofs << p50 << ',' << p90 << ',' << p100 << std::endl;
+  }
+  ofs.close();
 }
 
 void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool verbosity) {
@@ -330,6 +366,28 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
   process(events);
   outputTxs("txs.csv");
   outputBlocks("blocks.csv");
+  outputTxLog("tx.csv");
+  outputBlockLog("block.csv");
+  uint64_t tx50 = 0, tx90 = 0, tx100 = 0;
+  uint64_t block50 = 0, block90 = 0, block100 = 0;
+  for (auto &[t50, t90, t100] : txLog) {
+    tx50 += t50;
+    tx90 += t90;
+    tx100 += t100;
+  }
+  for (auto &[t50, t90, t100] : blockLog) {
+    block50 += t50;
+    block90 += t90;
+    block100 += t100;
+  }
+  tx50 /= txLog.size();
+  tx90 /= txLog.size();
+  tx100 /= txLog.size();
+  block50 /= blockLog.size();
+  block90 /= blockLog.size();
+  block100 /= blockLog.size();
+  std::cout << "tx " << tx50 << " " << tx90 << " " << tx100 << std::endl;
+  std::cout << "block " << block50 << " " << block90 << " " << block100 << std::endl;
   for (Node *node : nodes)
     delete node;
   std::cerr << "Mem: ";

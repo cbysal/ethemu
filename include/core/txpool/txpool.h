@@ -72,8 +72,6 @@ public:
   }
 
   void notifyBlockTxs(const std::vector<Tx> &txs) {
-    std::sort(pending.begin(), pending.end());
-    std::sort(queued.begin(), queued.end());
     for (Tx tx : txs) {
       Id id = tx >> 16;
       uint16_t nonce = tx;
