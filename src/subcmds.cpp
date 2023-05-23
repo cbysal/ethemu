@@ -35,10 +35,9 @@ void setPeers(const cxxopts::ParseResult &options, std::vector<EmuNode> &nodes, 
 
 void gen(const cxxopts::ParseResult &options) {
   auto dataDir = options["datadir"].as<std::string>();
-  if (std::filesystem::exists(dataDir)) {
-    std::filesystem::remove_all(dataDir);
+  if (!std::filesystem::exists(dataDir)) {
+    std::filesystem::create_directories(dataDir);
   }
-  std::filesystem::create_directories(dataDir);
   std::random_device rd;
   std::default_random_engine dre(rd());
   auto num = options["nodes"].as<int>();

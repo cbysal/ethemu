@@ -76,7 +76,9 @@ const EventType BlockEvent = 2;
 typedef std::tuple<uint64_t, EventType, Id, Hash> Event;
 
 const int PARALLEL = 16;
+bool verbosity = false;
 std::vector<Node *> nodes;
+std::atomic_int curTxId = 0;
 std::vector<Event> events;
 std::mutex eventMu;
 std::vector<std::tuple<uint16_t, uint16_t, uint16_t>> txLog;
@@ -166,8 +168,8 @@ int main(int argc, char *argv[]) {
   auto result = options.parse(argc, argv);
   switch (result.unmatched().size()) {
   case 0:
-    ethemu(result["datadir"].as<std::string>(), result["sim.time"].as<int>(), result["prefill"].as<int>(),
-           result["verbosity"].as<bool>());
+    verbosity = result["verbosity"].as<bool>();
+    ethemu(result["datadir"].as<std::string>(), result["sim.time"].as<int>(), result["prefill"].as<int>());
     break;
   case 1: {
     auto subcmd = result.unmatched()[0];
@@ -206,9 +208,11 @@ uint64_t genBlockEvents(Hash blockId, std::default_random_engine &dre) {
     }
   }
   std::vector<uint64_t> timeSpent = dijkstra(delays, block->coinbase);
-  std::vector<uint64_t> times = timeSpent;
-  std::sort(times.begin(), times.end());
-  blockLog.emplace_back(times[times.size() / 2], times[times.size() * 9 / 10], times.back());
+  if (verbosity) {
+    std::vector<uint64_t> times = timeSpent;
+    std::sort(times.begin(), times.end());
+    blockLog.emplace_back(times[times.size() / 2], times[times.size() * 9 / 10], times.back());
+  }
   uint64_t maxTimestamp = blockTime + *std::max_element(timeSpent.begin(), timeSpent.end());
   for (Id id = 0; id < nodes.size(); id++) {
     if (id == block->coinbase)
@@ -219,9 +223,10 @@ uint64_t genBlockEvents(Hash blockId, std::default_random_engine &dre) {
   return maxTimestamp;
 }
 
-void genTxEvents(Hash begin, Hash end) {
+void genTxEvents(Hash end) {
   std::vector<std::vector<std::pair<uint16_t, uint64_t>>> delays(nodes.size());
-  for (Hash curId = begin; curId < end; curId++) {
+  int curId;
+  while ((curId = curTxId++) < end) {
     auto &[txTime, tx] = txs[curId];
     for (Id i = 0; i < nodes.size(); i++) {
       Node *node = nodes[i];
@@ -238,10 +243,12 @@ void genTxEvents(Hash begin, Hash end) {
       }
     }
     std::vector<uint64_t> timeSpent = dijkstra(delays, (Id)(tx >> 16));
-    std::vector<uint64_t> times = timeSpent;
-    std::sort(times.begin(), times.end());
-    txLogMu.lock();
-    txLog.emplace_back(times[times.size() / 2], times[times.size() * 9 / 10], times.back());
+    if (verbosity) {
+      std::vector<uint64_t> times = timeSpent;
+      std::sort(times.begin(), times.end());
+      txLogMu.lock();
+      txLog.emplace_back(times[times.size() / 2], times[times.size() * 9 / 10], times.back());
+    }
     txLogMu.unlock();
     eventMu.lock();
     for (Id id = 0; id < nodes.size(); id++) {
@@ -249,6 +256,7 @@ void genTxEvents(Hash begin, Hash end) {
     }
     eventMu.unlock();
   }
+  curTxId--;
 }
 
 std::pair<Event, std::vector<std::vector<Event>>> genEventTree() {
@@ -310,7 +318,7 @@ void outputBlockLog(const std::string &file) {
   ofs.close();
 }
 
-void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool verbosity) {
+void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill) {
   loadConfig(dataDir);
   for (int i = 0; i < global.nodes.size(); i++) {
     const EmuNode &emuNode = global.nodes[i];
@@ -334,26 +342,13 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
   }
   std::random_device rd;
   std::default_random_engine dre(rd());
-  Hash curTx = 0;
   for (Hash curBlock = 1; curBlock < blocks.size(); curBlock++) {
     uint64_t safeBound = genBlockEvents(curBlock, dre);
-    int nextTx = std::upper_bound(txs.begin(), txs.end(), std::make_pair(safeBound, Tx(0))) - txs.begin();
-    int taskNum = nextTx - curTx;
-    if (taskNum < 16) {
-      genTxEvents(curTx, nextTx);
-    } else {
-      std::vector<Hash> sections;
-      sections.push_back(curTx);
-      for (int i = 1; i < PARALLEL; i++) {
-        sections.push_back(curTx + taskNum / PARALLEL * i);
-      }
-      sections.push_back(nextTx);
-      for (int i = 0; i < PARALLEL; i++) {
-        pool.submit([i, &sections] { genTxEvents(sections[i], sections[i + 1]); });
-      }
-      pool.wait_for_tasks();
+    int safeBoundIndex = std::upper_bound(txs.begin(), txs.end(), std::make_pair(safeBound, Tx(0))) - txs.begin();
+    for (int i = 0; i < PARALLEL; i++) {
+      pool.submit([safeBoundIndex] { genTxEvents(safeBoundIndex); });
     }
-    curTx = nextTx;
+    pool.wait_for_tasks();
     boost::sort::block_indirect_sort(events.begin(), events.end(), 16);
     std::pair<Event, std::vector<std::vector<Event>>> executableEvents = genEventTree();
     process(executableEvents.first);
@@ -364,34 +359,32 @@ void ethemu(const std::string &dataDir, uint64_t simTime, uint64_t prefill, bool
   }
   std::sort(events.begin(), events.end());
   process(events);
-  outputTxs("txs.csv");
-  outputBlocks("blocks.csv");
-  outputTxLog("tx.csv");
-  outputBlockLog("block.csv");
-  uint64_t tx50 = 0, tx90 = 0, tx100 = 0;
-  uint64_t block50 = 0, block90 = 0, block100 = 0;
-  for (auto &[t50, t90, t100] : txLog) {
-    tx50 += t50;
-    tx90 += t90;
-    tx100 += t100;
+  if (verbosity) {
+    outputTxs("txs.csv");
+    outputBlocks("blocks.csv");
+    outputTxLog("tx.csv");
+    outputBlockLog("block.csv");
+    uint64_t tx50 = 0, tx90 = 0, tx100 = 0;
+    uint64_t block50 = 0, block90 = 0, block100 = 0;
+    for (auto &[t50, t90, t100] : txLog) {
+      tx50 += t50;
+      tx90 += t90;
+      tx100 += t100;
+    }
+    for (auto &[t50, t90, t100] : blockLog) {
+      block50 += t50;
+      block90 += t90;
+      block100 += t100;
+    }
+    tx50 /= txLog.size();
+    tx90 /= txLog.size();
+    tx100 /= txLog.size();
+    block50 /= blockLog.size();
+    block90 /= blockLog.size();
+    block100 /= blockLog.size();
+    std::cout << "tx " << tx50 << " " << tx90 << " " << tx100 << std::endl;
+    std::cout << "block " << block50 << " " << block90 << " " << block100 << std::endl;
   }
-  for (auto &[t50, t90, t100] : blockLog) {
-    block50 += t50;
-    block90 += t90;
-    block100 += t100;
-  }
-  tx50 /= txLog.size();
-  tx90 /= txLog.size();
-  tx100 /= txLog.size();
-  block50 /= blockLog.size();
-  block90 /= blockLog.size();
-  block100 /= blockLog.size();
-  std::cout << "tx " << tx50 << " " << tx90 << " " << tx100 << std::endl;
-  std::cout << "block " << block50 << " " << block90 << " " << block100 << std::endl;
   for (Node *node : nodes)
     delete node;
-  std::cerr << "Mem: ";
-  pid_t pid = getpid();
-  system(std::string("cat /proc/" + std::to_string(pid) + "/status | grep VmHWM | awk '{print $2 $3}' > /dev/fd/2")
-             .data());
 }
